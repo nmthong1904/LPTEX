@@ -1,0 +1,7 @@
+node_modules/
+.vercel/
+.env*
+tools/serviceAccountKey.json
+tools/*adminsdk*.json
+tools/firebase_export.json
+*adminsdk*.json

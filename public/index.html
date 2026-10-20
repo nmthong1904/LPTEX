@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F1B2D">
+<title>Quét suất ăn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #EDF0F3;
+    --card: #FFFFFF;
+    --ink: #0F1B2D;
+    --muted: #5B6676;
+    --line: #CBD3DD;
+    --blue: #1D4ED8;
+    --ok: #0F7B55;
+    --warn: #B45309;
+    --bad: #B3261E;
+    --wait: #334155;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--paper); color: var(--ink); font-size: 16px; line-height: 1.45;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  [hidden] { display: none !important; }
+  button, input { font: inherit; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+  /* ---------- đăng nhập ---------- */
+  .login { min-height: 100%; display: grid; place-items: center; padding: 24px; }
+  .login form { width: 100%; max-width: 380px; background: var(--card); border-radius: var(--radius); padding: 28px 24px; border: 1px solid var(--line); }
+  .login h1 { margin: 0 0 4px; font-size: 24px; font-weight: 800; }
+  .login p.sub { margin: 0 0 22px; color: var(--muted); }
+  label { display: block; font-weight: 700; font-size: 14px; margin: 14px 0 6px; }
+  input[type=text], input[type=password] {
+    width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
+  }
+  .btn {
+    height: 48px; padding: 0 20px; border: 0; border-radius: 10px; background: var(--blue); color: #fff; font-weight: 700; cursor: pointer;
+  }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+  .login .btn { width: 100%; margin-top: 22px; }
+  .err { color: var(--bad); font-weight: 500; min-height: 22px; margin-top: 12px; }
+
+  /* ---------- màn quét ---------- */
+  .app { min-height: 100%; display: grid; grid-template-rows: auto 1fr; }
+  .bar {
+    display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--ink); color: #fff;
+  }
+  .bar .who { flex: 1; min-width: 0; }
+  .bar .who b { display: block; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar .who span { font-size: 13px; opacity: .75; }
+  .badge { background: #fff; color: var(--ok); font-weight: 800; font-size: 13px; padding: 4px 10px; border-radius: 999px; }
+  .bar .btn { height: 38px; padding: 0 14px; background: transparent; border: 1.5px solid rgba(255,255,255,.4); color: #fff; font-size: 14px; }
+
+  .grid { display: grid; gap: 16px; padding: 16px; align-content: start; max-width: 1100px; width: 100%; margin: 0 auto; }
+  @media (min-width: 900px) { .grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } }
+
+  .stage { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; aspect-ratio: 1 / 1; max-height: 70vh; width: 100%; }
+  #reader { width: 100%; height: 100%; }
+  #reader video { object-fit: cover; }
+  .cam-msg { position: absolute; inset: auto 12px 12px 12px; color: #fff; background: rgba(0,0,0,.65); border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+  .cam-msg:empty { display: none; }
+  .swap { position: absolute; top: 10px; right: 10px; height: 36px; padding: 0 12px; font-size: 13px; background: rgba(0,0,0,.55); color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
+
+  /* kết quả phủ lên khung camera: màu trạng thái là thứ đọc được từ xa */
+  .result {
+    position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+    padding: 20px; color: #fff; cursor: pointer; background: var(--wait);
+  }
+  .result.ok { background: var(--ok); }
+  .result.dup { background: var(--warn); }
+  .result.bad { background: var(--bad); }
+  .result .state { font-size: clamp(22px, 5vw, 34px); font-weight: 800; margin: 0 0 14px; }
+  .result .person { font-size: clamp(26px, 7vw, 46px); font-weight: 800; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
+  .result .meta { margin: 10px 0 0; font-size: clamp(16px, 3.6vw, 22px); font-weight: 500; opacity: .95; }
+  .result .msg { margin: 14px 0 0; font-size: clamp(15px, 3.4vw, 20px); max-width: 30ch; }
+  .result .chip { margin-top: 14px; background: #fff; color: var(--ink); font-weight: 700; padding: 6px 14px; border-radius: 999px; font-size: 15px; }
+
+  .side { display: grid; gap: 16px; align-content: start; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  .panel h2 { margin: 0 0 10px; font-size: 16px; font-weight: 700; }
+  .manual { display: flex; gap: 10px; }
+  .manual input { flex: 1; min-width: 0; text-transform: uppercase; }
+  .log { list-style: none; margin: 0; padding: 0; }
+  .log li { display: flex; gap: 10px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line); }
+  .log li:first-child { border-top: 0; }
+  .log .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--wait); transform: translateY(1px); }
+  .log .ok .dot { background: var(--ok); } .log .dup .dot { background: var(--warn); } .log .bad .dot { background: var(--bad); }
+  .log .t { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 14px; }
+  .log .n { flex: 1; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
+  .empty { color: var(--muted); margin: 0; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .result { animation: pop .12s ease-out; }
+    @keyframes pop { from { opacity: .0; } to { opacity: 1; } }
+  }
+</style>
+</head>
+<body>
+
+<section id="login" class="login" hidden>
+  <form id="loginForm" autocomplete="on">
+    <h1>Nhà ăn</h1>
+    <p class="sub">Đăng nhập để quét thẻ nhận suất ăn.</p>
+    <label for="user">Tài khoản</label>
+    <input id="user" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    <label for="pass">Mật khẩu</label>
+    <input id="pass" type="password" autocomplete="current-password" required>
+    <button id="loginBtn" class="btn" type="submit">Đăng nhập</button>
+    <div id="loginErr" class="err" role="alert"></div>
+  </form>
+</section>
+
+<div id="app" class="app" hidden>
+  <header class="bar">
+    <div class="who"><b id="whoName">-</b><span id="whoNote">Quét suất thường</span></div>
+    <span id="vegBadge" class="badge" hidden>Suất chay</span>
+    <button id="logoutBtn" class="btn" type="button">Đăng xuất</button>
+  </header>
+
+  <main class="grid">
+    <div class="stage">
+      <div id="reader"></div>
+      <button id="swapBtn" class="swap" type="button">Đổi camera</button>
+      <div id="camMsg" class="cam-msg" role="status"></div>
+      <div id="result" class="result" hidden role="status" aria-live="assertive">
+        <p id="rState" class="state"></p>
+        <p id="rName" class="person"></p>
+        <p id="rMeta" class="meta"></p>
+        <p id="rMsg" class="msg"></p>
+        <span id="rChip" class="chip" hidden></span>
+      </div>
+    </div>
+
+    <div class="side">
+      <form id="manualForm" class="panel" autocomplete="off">
+        <h2>Nhập mã thẻ bằng tay</h2>
+        <div class="manual">
+          <input id="manualCode" type="text" placeholder="Mã thẻ 10 ký tự" maxlength="40" autocapitalize="characters" spellcheck="false" aria-label="Mã thẻ">
+          <button class="btn" type="submit">Ghi nhận</button>
+        </div>
+      </form>
+      <section class="panel">
+        <h2>Vừa quét</h2>
+        <ul id="log" class="log"></ul>
+        <p id="logEmpty" class="empty">Chưa có lượt quét nào.</p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+// ====== DÁN CẤU HÌNH FIREBASE CỦA BẠN VÀO ĐÂY (Project settings > Your apps > Web app > Config) ======
+const firebaseConfig = {
+  apiKey: "AIzaSyCOOcRjv-WvEt-zBagHw0F7iA1RFRFPNyw",
+  authDomain: "lptex-2069b.firebaseapp.com",
+  projectId: "lptex-2069b",
+  appId: "1:274732050510:web:00fc0eeb2e3a561efb3b1f"
+};
+// ===================================================================================================
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);                         // tự nhớ đăng nhập trên thiết bị cho đến khi bấm Đăng xuất
+// Gọi hàm xử lý trên Vercel (/api/recordMeal) kèm Firebase ID token; trả về { data } giống bản Cloud Function cũ
+async function record(payload) {
+  const user = auth.currentUser;
+  if (!user) { const e = new Error("unauthenticated"); e.code = "functions/unauthenticated"; throw e; }
+  const idToken = await user.getIdToken();
+  const r = await fetch("/api/recordMeal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + idToken },
+    body: JSON.stringify(payload)
+  });
+  if (r.status === 401) { const e = new Error("unauthenticated"); e.code = "functions/unauthenticated"; throw e; }
+  if (!r.ok) throw new Error("http " + r.status);
+  return { data: await r.json() };
+}
+
+const $ = id => document.getElementById(id);
+const toEmail = u => String(u).trim().toLowerCase().replace(/[^a-z0-9._-]/g, "") + "@nhaan.local";   // giống tools/import.js
+
+// ---------- âm báo ----------
+let ac;
+function beep(freq, ms) {
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.value = freq; g.gain.value = 0.08;
+    o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + ms / 1000);
+  } catch (e) {}
+}
+const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+
+// ---------- đăng nhập ----------
+$("loginForm").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  $("loginErr").textContent = "";
+  $("loginBtn").disabled = true;
+  try {
+    await signInWithEmailAndPassword(auth, toEmail($("user").value), $("pass").value);
+    $("pass").value = "";
+  } catch (e) {
+    const m = {
+      "auth/network-request-failed": "Không có mạng. Kiểm tra kết nối rồi thử lại.",
+      "auth/user-disabled": "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị.",
+      "auth/too-many-requests": "Đăng nhập sai quá nhiều lần. Thử lại sau ít phút."
+    };
+    $("loginErr").textContent = m[e.code] || "Sai tài khoản hoặc mật khẩu.";
+  } finally { $("loginBtn").disabled = false; }
+});
+$("logoutBtn").addEventListener("click", () => signOut(auth));
+
+let pingTimer = null;
+onAuthStateChanged(auth, async user => {
+  if (!user) {
+    $("app").hidden = true; $("login").hidden = false;
+    clearInterval(pingTimer); stopCam();
+    return;
+  }
+  const tok = await user.getIdTokenResult();
+  const veg = String(tok.claims.role || "").toUpperCase() === "CHAY";
+  $("whoName").textContent = user.displayName || user.email.split("@")[0];
+  $("whoNote").textContent = veg ? "Chỉ nhận nhân viên đã đăng ký chay" : "Quét suất thường";
+  $("vegBadge").hidden = !veg;
+  $("login").hidden = true; $("app").hidden = false;
+  startCam();
+  ping(); clearInterval(pingTimer); pingTimer = setInterval(ping, 4 * 60 * 1000);   // giữ hàm máy chủ "nóng"
+});
+function ping() { record({ ping: true }).catch(() => {}); }
+
+// ---------- camera ----------
+let qr = null, facing = "environment", starting = false;
+async function startCam() {
+  if (starting) return;
+  starting = true;
+  try {
+    if (!qr) qr = new Html5Qrcode("reader");
+    if (qr.isScanning) await qr.stop();
+    await qr.start(
+      { facingMode: facing },
+      { fps: 10, aspectRatio: 1, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.7); return { width: s, height: s }; } },
+      text => handle(parseQR(text)),
+      () => {}
+    );
+    $("camMsg").textContent = "";
+  } catch (e) {
+    $("camMsg").textContent = "Không mở được camera. Cho phép quyền camera cho trang này rồi tải lại trang.";
+  } finally { starting = false; }
+}
+async function stopCam() { try { if (qr && qr.isScanning) await qr.stop(); } catch (e) {} }
+$("swapBtn").addEventListener("click", () => { facing = facing === "environment" ? "user" : "environment"; startCam(); });
+
+// QR có thể là link ...?the=MÃ_THẺ, link cũ ...?msnv=MSNV, hoặc chỉ mã thẻ
+function parseQR(text) {
+  text = String(text || "").trim();
+  try {
+    const u = new URL(text);
+    const the = u.searchParams.get("the"), msnv = u.searchParams.get("msnv");
+    if (the) return { the: the.trim() };
+    if (msnv) return { msnv: msnv.trim() };
+  } catch (e) {}
+  return { the: text };
+}
+
+// ---------- ghi nhận ----------
+let busy = false, lastKey = "", lastAt = 0, hideTimer = null;
+const history = [];
+
+async function handle(payload, force) {
+  const k = payload.the || payload.msnv || "";
+  const now = Date.now();
+  if (busy) return;
+  if (!force && k === lastKey && now - lastAt < 4000) return;   // cùng 1 thẻ vừa quét xong
+  lastKey = k; lastAt = now; busy = true;
+  show("wait", "Đang kiểm tra...", "", "", "", "");
+  try {
+    const res = await record(payload);
+    render(res.data || {});
+  } catch (e) {
+    if (e.code === "functions/unauthenticated") { show("bad", "Hết phiên đăng nhập", "", "", "Vui lòng đăng nhập lại.", ""); signOut(auth); }
+    else show("bad", "Chưa ghi nhận được", "", "", "Lỗi mạng hoặc máy chủ. Quét lại thẻ này.", "");
+    beep(220, 400); buzz([200, 80, 200]);
+    lastKey = "";   // cho phép quét lại ngay
+  } finally { busy = false; }
+}
+
+function render(r) {
+  const emp = r.employee || {};
+  const x = emp.x || {};
+  const meta = [emp.msnv, emp.donVi, x.CONG_TY].filter(Boolean).join(" - ");
+  if (r.ok) {
+    show("ok", "Đã ghi nhận", emp.hoTen, meta, "", r.note || "");
+    beep(880, 160); buzz(80); addLog("ok", emp.hoTen || emp.msnv, "Đã ghi nhận");
+  } else if (r.duplicate) {
+    show("dup", "Đã lấy suất ăn", emp.hoTen, meta, r.message + (r.next ? " Được quét lại lúc " + r.next + "." : ""), "");
+    beep(440, 300); buzz([120, 60, 120]); addLog("dup", emp.hoTen || emp.msnv, "Đã lấy suất lúc " + (r.time || "").split(" ")[0]);
+  } else {
+    const title = r.notFound ? "Không tìm thấy thẻ" : "Không cấp suất ăn";
+    show("bad", title, emp.hoTen, meta, r.message || "Không hợp lệ.", "");
+    beep(220, 450); buzz([250, 80, 250]); addLog("bad", emp.hoTen || "Thẻ không hợp lệ", r.message || "");
+  }
+}
+
+function show(kind, state, name, meta, msg, chip) {
+  const el = $("result");
+  el.className = "result " + kind;
+  $("rState").textContent = state;
+  $("rName").textContent = name || "";
+  $("rMeta").textContent = meta || "";
+  $("rMsg").textContent = msg || "";
+  $("rChip").textContent = chip || ""; $("rChip").hidden = !chip;
+  el.hidden = false;
+  clearTimeout(hideTimer);
+  if (kind !== "wait") hideTimer = setTimeout(hide, kind === "ok" ? 2200 : 4500);
+}
+function hide() { $("result").hidden = true; }
+$("result").addEventListener("click", hide);
+
+function addLog(kind, name, text) {
+  const t = new Date().toLocaleTimeString("vi-VN", { hour12: false });
+  history.unshift({ kind, t, name, text });
+  history.length = Math.min(history.length, 8);
+  $("logEmpty").hidden = true;
+  $("log").innerHTML = "";
+  history.forEach(h => {
+    const li = document.createElement("li"); li.className = h.kind;
+    li.innerHTML = '<span class="dot"></span><span class="t"></span><span class="n"></span>';
+    li.querySelector(".t").textContent = h.t;
+    li.querySelector(".n").textContent = h.name + (h.kind === "ok" ? "" : " (" + h.text + ")");
+    $("log").appendChild(li);
+  });
+}
+
+// ---------- nhập tay ----------
+$("manualForm").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const code = $("manualCode").value.trim();
+  if (!code) return;
+  handle({ the: code }, true);
+  $("manualCode").value = "";
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+rules_version = '2';
+// Trang quét KHÔNG đọc/ghi Firestore trực tiếp. Mọi thao tác đi qua Cloud Function (Admin SDK bỏ qua rules).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
