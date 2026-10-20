@@ -5,16 +5,17 @@
  * Dữ liệu Firestore (giống bản cũ):
  *   employees/{key}   cards/{maThe}   lastMeal/{key}   meals/{id}   refused/{id}
  *******************************************************/
-const { initializeApp, getApps, cert } = require('firebase-admin/app');
-const { getFirestore, Timestamp } = require('firebase-admin/firestore');
-const { getAuth } = require('firebase-admin/auth');
-
-let db;
+// Nạp thư viện lười (lazy) để nếu thiếu thư viện / sai cấu hình thì hàm trả lỗi đọc được, không bị sập
+let db, Timestamp, getAuth;
 function init() {
-  if (!getApps().length) {
-    initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
+  const app = require('firebase-admin/app');
+  const fsx = require('firebase-admin/firestore');
+  getAuth = require('firebase-admin/auth').getAuth;
+  Timestamp = fsx.Timestamp;
+  if (!app.getApps().length) {
+    app.initializeApp({ credential: app.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
   }
-  db = db || getFirestore();
+  db = db || fsx.getFirestore();
 }
 
 const RESET_HOURS = 4;            // sau bao nhiêu giờ thì được nhận lại
@@ -199,26 +200,42 @@ async function recordMeal(token, data) {
   };
 }
 
+const errText = e => String((e && (e.code || '') + ' ' + (e.message || e))).trim().slice(0, 300);
+
+// GET /api/recordMeal?diag=1 : báo tình trạng hàm (không lộ khóa) - chỉ dùng khi chẩn đoán
+async function diag() {
+  const out = { node: process.version, region: process.env.VERCEL_REGION || '', envPresent: !!process.env.FIREBASE_SERVICE_ACCOUNT };
+  try { require('firebase-admin/app'); out.adminLoad = 'ok'; } catch (e) { out.adminLoad = errText(e); }
+  try {
+    const j = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    out.envParse = 'ok'; out.projectId = j.project_id || '(thiếu project_id)';
+    out.hasPrivateKey = !!(j.private_key && j.private_key.includes('BEGIN PRIVATE KEY'));
+  } catch (e) { out.envParse = errText(e); }
+  try { init(); const c = await db.doc('cards/NEK37UJCDW').get(); out.firestore = c.exists ? 'ok (đọc được thẻ mẫu)' : 'ok nhưng không thấy thẻ mẫu'; }
+  catch (e) { out.firestore = errText(e); }
+  return out;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
-  const m = /^Bearer (.+)$/.exec(req.headers.authorization || '');
-  if (!m) return res.status(401).json({ error: 'unauthenticated' });
-  let token;
   try {
-    init();
-    token = await getAuth().verifyIdToken(m[1]);
-  } catch (e) {
-    console.error('verifyIdToken', e && e.message);
-    return res.status(401).json({ error: 'unauthenticated' });
-  }
-  try {
+    if (req.method === 'GET' && req.query && req.query.diag) return res.status(200).json(await diag());
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
+    const m = /^Bearer (.+)$/.exec(req.headers.authorization || '');
+    if (!m) return res.status(401).json({ error: 'unauthenticated' });
+    try { init(); } catch (e) {
+      console.error('init', e);
+      return res.status(500).json({ error: 'server', detail: 'init: ' + errText(e) });
+    }
+    let token;
+    try { token = await getAuth().verifyIdToken(m[1]); }
+    catch (e) { console.error('verifyIdToken', e && e.message); return res.status(401).json({ error: 'unauthenticated' }); }
     let data = req.body;
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { data = {}; } }
     const out = await recordMeal(token, data || {});
     return res.status(200).json(out);
   } catch (e) {
     console.error('recordMeal', e);
-    return res.status(500).json({ error: 'server' });
+    return res.status(500).json({ error: 'server', detail: errText(e) });
   }
 };
