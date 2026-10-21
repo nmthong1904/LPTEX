@@ -1,5 +1,6 @@
 /*******************************************************
  * Đặt role cho tài khoản (chạy trong thư mục tools, cần file khóa dịch vụ như import.js):
+ *   node set-role.js master1 master --password=MatKhau0               tài khoản MASTER (quản lý user/admin + xem báo cáo)
  *   node set-role.js vitc admin --company=VITC --password=MatKhau1    admin công ty VITC Garment (chưa có thì tạo mới)
  *   node set-role.js lptex admin --company=LPTEX --password=MatKhau2  admin công ty LPTEX
  *   node set-role.js bep01 user                                       tài khoản chỉ quét suất thường
@@ -17,9 +18,9 @@ const [username, role] = args.filter(a => !a.startsWith('--'));
 const pwArg = args.find(a => a.startsWith('--password='));
 const coArg = args.find(a => a.startsWith('--company='));
 const company = coArg ? coArg.slice(10).trim().toUpperCase() : '';
-const ROLES = { admin: 'ADMIN', user: '', chay: 'CHAY' };
+const ROLES = { master: 'MASTER', admin: 'ADMIN', user: '', chay: 'CHAY' };
 if (!username || !(role in ROLES)) {
-  console.log('Cách dùng: node set-role.js <tên đăng nhập> admin|user|chay [--password=...]');
+  console.log('Cách dùng: node set-role.js <tên đăng nhập> master|admin|user|chay [--password=...]');
   process.exit(1);
 }
 if (role === 'admin' && !['VITC', 'LPTEX'].includes(company)) {

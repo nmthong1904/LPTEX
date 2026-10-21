@@ -100,7 +100,6 @@
   .log .t { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 14px; }
   .log .n { flex: 1; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
   .empty { color: var(--muted); margin: 0; }
-  .speed { white-space: pre-line; font-variant-numeric: tabular-nums; }
   .result .timing { margin: 14px 0 0; font-size: 15px; opacity: .9; font-variant-numeric: tabular-nums; }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -153,10 +152,6 @@
         <h2>Vừa quét</h2>
         <ul id="log" class="log"></ul>
         <p id="logEmpty" class="empty">Chưa có lượt quét nào.</p>
-      </section>
-      <section class="panel">
-        <h2>Tốc độ quét</h2>
-        <p id="speed" class="empty speed">Chưa có số liệu. Thời gian tính từ lúc camera đọc được mã QR đến lúc hiện kết quả.</p>
       </section>
     </div>
   </main>
@@ -251,6 +246,7 @@ onAuthStateChanged(auth, async user => {
     return;
   }
   const tok = await user.getIdTokenResult();
+  if (String(tok.claims.role || "").toUpperCase() === "MASTER") { location.replace("/master.html"); return; }   // tài khoản master dùng trang quản lý hệ thống
   if (String(tok.claims.role || "").toUpperCase() === "ADMIN") { location.replace("/admin.html"); return; }   // tài khoản admin dùng trang quản trị, không quét
   const veg = String(tok.claims.role || "").toUpperCase() === "CHAY";
   $("whoName").textContent = user.displayName || user.email.split("@")[0];
@@ -351,13 +347,7 @@ function recordTiming(ms, tm, r) {
   const s = r.t || {};
   const server = s.auth != null ? s.auth + s.logic : null;
   const net = tm.http != null ? Math.max(0, tm.http - (server || 0)) : null;
-  const sum = times.reduce((a, b) => a + b, 0);
   $("rTime").textContent = "Thời gian xử lý: " + fmtSec(ms);
-  $("speed").textContent =
-    "Lần này: " + fmtSec(ms) + (s.cold ? "  (máy chủ khởi động nguội)" : "") + "\n" +
-    "  lấy token " + Math.round(tm.token || 0) + " ms · mạng " + (net == null ? "?" : Math.round(net)) + " ms · máy chủ " + (server == null ? "?" : server) + " ms" +
-    (s.auth != null ? " (xác thực " + s.auth + " + dữ liệu " + s.logic + ")" : "") + "\n" +
-    "Trung bình " + times.length + " lượt gần nhất: " + fmtSec(sum / times.length) + " · nhanh nhất " + fmtSec(Math.min(...times)) + " · chậm nhất " + fmtSec(Math.max(...times));
   console.log("[scan]", { tong_ms: Math.round(ms), token_ms: Math.round(tm.token || 0), mang_ms: net == null ? null : Math.round(net), maychu_ms: server, cold: !!s.cold });
 }
 

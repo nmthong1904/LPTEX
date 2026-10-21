@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F1B2D">
+<title>Quản lý hệ thống</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --paper:#EDF0F3; --card:#fff; --ink:#0F1B2D; --muted:#5B6676; --line:#CBD3DD; --blue:#1D4ED8; --ok:#0F7B55; --warn:#B45309; --bad:#B3261E; --radius:14px; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Be Vietnam Pro",system-ui,"Segoe UI",sans-serif; background:var(--paper); color:var(--ink); line-height:1.45; }
+  [hidden] { display:none !important; }
+  button, input, select { font:inherit; }
+  :focus-visible { outline:3px solid var(--blue); outline-offset:2px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 16px; border:0; border-radius:10px; background:var(--blue); color:#fff; font-weight:700; cursor:pointer; text-decoration:none; white-space:nowrap; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .btn.ghost { background:transparent; color:var(--ink); border:1.5px solid var(--line); }
+  .btn.danger { background:transparent; color:var(--bad); border:1.5px solid var(--bad); }
+  .btn.sm { height:34px; padding:0 12px; font-size:14px; }
+  .bar .btn.ghost { color:#fff; border-color:rgba(255,255,255,.4); height:36px; font-size:14px; }
+  input[type=text], input[type=password], input[type=date], select { width:100%; height:44px; padding:0 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
+  label { display:block; font-weight:700; font-size:14px; margin:14px 0 6px; }
+  .err { color:var(--bad); min-height:22px; margin-top:10px; }
+  .ok { color:var(--ok); font-weight:700; }
+  .muted { color:var(--muted); }
+
+  .login { min-height:100vh; display:grid; place-items:center; padding:24px; }
+  .box { width:100%; max-width:380px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:28px 24px; }
+  .box h1 { margin:0 0 6px; font-size:22px; }
+  .box .btn { width:100%; margin-top:18px; height:46px; }
+
+  .bar { display:flex; align-items:center; gap:10px; padding:10px 16px; background:var(--ink); color:#fff; }
+  .bar b { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tabs { display:flex; gap:8px; max-width:1000px; margin:16px auto 0; padding:0 16px; }
+  .tab { height:40px; padding:0 18px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font-weight:700; cursor:pointer; }
+  .tab[aria-selected=true] { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .wrap { max-width:1000px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
+  .panel h2 { margin:0 0 10px; font-size:16px; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+  .toolbar > * { flex:1 1 160px; }
+  .toolbar .btn { flex:0 0 auto; }
+  .toolbar label { margin:0 0 6px; }
+  .scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:9px 8px; border-top:1px solid var(--line); vertical-align:middle; }
+  th { color:var(--muted); font-weight:500; border-top:0; white-space:nowrap; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  td.acts { white-space:nowrap; text-align:right; }
+  td.acts .btn { margin-left:6px; }
+  .tag { font-size:12px; font-weight:700; padding:2px 9px; border-radius:999px; color:#fff; background:var(--muted); white-space:nowrap; }
+  .tag.admin { background:var(--blue); } .tag.chay { background:var(--ok); } .tag.master { background:var(--ink); } .tag.off { background:var(--bad); }
+
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; }
+  .tile small { color:var(--muted); display:block; }
+  .tile b { font-size:28px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .chart { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(10px,1fr); gap:3px; align-items:end; height:180px; overflow-x:auto; padding-top:8px; }
+  .col { display:flex; flex-direction:column; justify-content:flex-end; height:100%; min-width:10px; }
+  .col i { display:block; min-height:0; }
+  .col .a { background:var(--blue); } .col .b { background:var(--ok); }
+  .lg { display:flex; gap:16px; font-size:13px; color:var(--muted); margin-top:8px; flex-wrap:wrap; }
+  .lg span::before { content:""; display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px; background:var(--blue); }
+  .lg span.g::before { background:var(--ok); }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:16px; }
+  @media (max-width:480px) { .grid2 { grid-template-columns:1fr; } }
+  details summary { cursor:pointer; font-weight:700; }
+
+  dialog { border:0; border-radius:var(--radius); padding:0; width:min(440px, calc(100% - 24px)); }
+  dialog::backdrop { background:rgba(15,27,45,.5); }
+  dialog form { padding:20px; }
+  dialog h2 { margin:0 0 4px; font-size:18px; }
+  .chk { display:flex; align-items:center; gap:8px; margin-top:14px; font-weight:500; }
+  .chk input { width:20px; height:20px; }
+  .row { display:flex; gap:10px; margin-top:16px; }
+  .row .btn { flex:1; margin:0; width:auto; }
+</style>
+</head>
+<body>
+
+<section id="login" class="login" hidden>
+  <form id="loginForm" class="box">
+    <h1>Quản lý hệ thống</h1>
+    <label for="user">Tài khoản</label>
+    <input id="user" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    <label for="pass">Mật khẩu</label>
+    <input id="pass" type="password" autocomplete="current-password" required>
+    <button id="loginBtn" class="btn" type="submit">Đăng nhập</button>
+    <div id="loginErr" class="err" role="alert"></div>
+  </form>
+</section>
+
+<section id="deny" class="login" hidden>
+  <div class="box">
+    <h1>Không có quyền truy cập</h1>
+    <p>Trang này chỉ dành cho tài khoản master.</p>
+    <a class="btn" href="/">Về trang chủ</a>
+    <button id="denyOut" class="btn ghost" type="button" style="margin-top:10px">Đăng xuất</button>
+  </div>
+</section>
+
+<div id="app" hidden>
+  <header class="bar">
+    <b id="who">Master</b>
+    <button id="meBtn" class="btn ghost" type="button">Đổi mật khẩu</button>
+    <button id="logoutBtn" class="btn ghost" type="button">Đăng xuất</button>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabU" aria-selected="true" type="button">Tài khoản</button>
+    <button class="tab" role="tab" id="tabR" aria-selected="false" type="button">Báo cáo thống kê</button>
+  </div>
+
+  <!-- ===== Tài khoản ===== -->
+  <main id="paneU" class="wrap">
+    <section class="panel">
+      <div class="toolbar">
+        <div><label for="uq">Tìm tài khoản</label><input id="uq" type="text" placeholder="Tên tài khoản" autocomplete="off"></div>
+        <div><label for="urole">Vai trò</label>
+          <select id="urole">
+            <option value="">Tất cả</option>
+            <option value="admin">Admin công ty</option>
+            <option value="user">Quét suất thường</option>
+            <option value="chay">Quét suất chay</option>
+            <option value="master">Master</option>
+          </select>
+        </div>
+        <button id="addBtn" class="btn" type="button">Thêm tài khoản</button>
+      </div>
+      <div id="umsg" class="err" role="status"></div>
+      <p id="ucnt" class="muted" style="margin:0 0 8px"></p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Tài khoản</th><th>Vai trò</th><th>Công ty</th><th>Trạng thái</th><th>Đăng nhập gần nhất</th><th></th></tr></thead>
+          <tbody id="ubody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Báo cáo ===== -->
+  <main id="paneR" class="wrap" hidden>
+    <section class="panel">
+      <div class="toolbar">
+        <div><label for="rFrom">Từ ngày</label><input id="rFrom" type="date"></div>
+        <div><label for="rTo">Đến ngày</label><input id="rTo" type="date"></div>
+        <div><label for="rCo">Công ty</label>
+          <select id="rCo"><option value="">Tất cả</option><option value="VITC">VITC Garment</option><option value="LPTEX">LPTEX</option></select>
+        </div>
+        <button id="rGo" class="btn" type="button">Xem báo cáo</button>
+        <button id="rCsv" class="btn ghost" type="button" disabled>Tải CSV</button>
+      </div>
+      <div id="rmsg" class="err" role="status"></div>
+    </section>
+
+    <div id="rOut" hidden style="display:grid; gap:16px">
+      <div class="tiles" id="tiles"></div>
+      <section class="panel">
+        <h2>Số suất theo ngày</h2>
+        <div id="chart" class="chart"></div>
+        <div class="lg"><span>Suất thường</span><span class="g">Suất chay</span></div>
+        <details style="margin-top:12px"><summary>Xem bảng số liệu theo ngày</summary>
+          <div class="scroll"><table><thead><tr><th>Ngày</th><th class="num">Thường</th><th class="num">Chay</th><th class="num">Tổng</th></tr></thead><tbody id="tDay"></tbody></table></div>
+        </details>
+      </section>
+      <div class="grid2">
+        <section class="panel"><h2>Theo công ty</h2>
+          <div class="scroll"><table><thead><tr><th>Công ty</th><th class="num">Thường</th><th class="num">Chay</th><th class="num">Tổng</th></tr></thead><tbody id="tCo"></tbody></table></div>
+        </section>
+        <section class="panel"><h2>Theo tài khoản quét</h2>
+          <div class="scroll"><table><thead><tr><th>Tài khoản</th><th class="num">Thường</th><th class="num">Chay</th><th class="num">Tổng</th></tr></thead><tbody id="tSc"></tbody></table></div>
+        </section>
+      </div>
+      <section class="panel"><h2>Theo phòng ban</h2>
+        <div class="scroll"><table><thead><tr><th>Công ty</th><th>Phòng ban</th><th class="num">Thường</th><th class="num">Chay</th><th class="num">Tổng</th></tr></thead><tbody id="tDept"></tbody></table></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Thêm / sửa tài khoản -->
+<dialog id="udlg">
+  <form id="uf">
+    <h2 id="uTitle">Thêm tài khoản</h2>
+    <label for="uName">Tên tài khoản</label><input id="uName" type="text" maxlength="30" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+    <div id="uPassBox"><label for="uPass">Mật khẩu (tối thiểu 6 ký tự)</label><input id="uPass" type="password" autocomplete="new-password"></div>
+    <label for="uRole">Vai trò</label>
+    <select id="uRole">
+      <option value="user">Quét suất thường</option>
+      <option value="chay">Quét suất chay</option>
+      <option value="admin">Admin công ty</option>
+    </select>
+    <div id="uCoBox"><label for="uCo">Công ty (cho admin)</label>
+      <select id="uCo"><option value="VITC">VITC Garment</option><option value="LPTEX">LPTEX</option></select>
+    </div>
+    <label class="chk" id="uOffBox"><input id="uOff" type="checkbox"> Khóa tài khoản (không đăng nhập được)</label>
+    <div id="uErr" class="err" role="alert"></div>
+    <div class="row">
+      <button id="uCancel" class="btn ghost" type="button">Hủy</button>
+      <button id="uSave" class="btn" type="submit">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Đổi mật khẩu -->
+<dialog id="pdlg">
+  <form id="pf">
+    <h2 id="pTitle">Đổi mật khẩu</h2>
+    <p id="pWho" class="muted" style="margin:0"></p>
+    <label for="pNew">Mật khẩu mới (tối thiểu 6 ký tự)</label><input id="pNew" type="password" autocomplete="new-password" required>
+    <label for="pNew2">Nhập lại mật khẩu mới</label><input id="pNew2" type="password" autocomplete="new-password" required>
+    <div id="pErr" class="err" role="alert"></div>
+    <div class="row">
+      <button id="pCancel" class="btn ghost" type="button">Hủy</button>
+      <button id="pSave" class="btn" type="submit">Đổi mật khẩu</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+const auth = getAuth(initializeApp({
+  apiKey: "AIzaSyCOOcRjv-WvEt-zBagHw0F7iA1RFRFPNyw",
+  authDomain: "lptex-2069b.firebaseapp.com",
+  projectId: "lptex-2069b",
+  appId: "1:274732050510:web:00fc0eeb2e3a561efb3b1f"
+}));
+
+const $ = id => document.getElementById(id);
+const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toEmail = u => String(u).trim().toLowerCase().replace(/[^a-z0-9._-]/g, "") + "@nhaan.local";
+const show = id => ["login", "deny", "app"].forEach(x => $(x).hidden = x !== id);
+const vnDate = d => d.split("-").reverse().join("/");
+const nf = n => Number(n || 0).toLocaleString("vi-VN");
+const ROLE = { admin: "Admin công ty", user: "Quét suất thường", chay: "Quét suất chay", master: "Master" };
+const CO = { VITC: "VITC Garment", LPTEX: "LPTEX" };
+const when = s => s ? new Date(s).toLocaleString("vi-VN", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }) : "Chưa đăng nhập";
+
+async function api(action, body) {
+  const token = await auth.currentUser.getIdToken();
+  const r = await fetch("/api/master", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+    body: JSON.stringify({ action, ...body })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.message || "Lỗi máy chủ (" + r.status + ")");
+  return j;
+}
+
+// ---------- đăng nhập ----------
+$("loginForm").addEventListener("submit", async ev => {
+  ev.preventDefault(); $("loginErr").textContent = ""; $("loginBtn").disabled = true;
+  try { await signInWithEmailAndPassword(auth, toEmail($("user").value), $("pass").value); $("pass").value = ""; }
+  catch (e) { $("loginErr").textContent = e.code === "auth/user-disabled" ? "Tài khoản đã bị khóa." : "Sai tài khoản hoặc mật khẩu."; }
+  finally { $("loginBtn").disabled = false; }
+});
+$("logoutBtn").addEventListener("click", () => signOut(auth));
+$("denyOut").addEventListener("click", () => signOut(auth));
+
+let me = "", users = [];
+onAuthStateChanged(auth, async user => {
+  if (!user) return show("login");
+  const t = await user.getIdTokenResult(true);
+  if (String(t.claims.role || "").toUpperCase() !== "MASTER") return show("deny");
+  me = user.email.split("@")[0];
+  $("who").textContent = "Master: " + me;
+  show("app");
+  loadUsers();
+  if (!$("rFrom").value) {
+    const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    $("rTo").value = today; $("rFrom").value = today.slice(0, 8) + "01";
+  }
+});
+
+// ---------- chuyển tab ----------
+function tab(r) {
+  $("paneU").hidden = r; $("paneR").hidden = !r;
+  $("tabU").setAttribute("aria-selected", String(!r)); $("tabR").setAttribute("aria-selected", String(r));
+}
+$("tabU").addEventListener("click", () => tab(false));
+$("tabR").addEventListener("click", () => { tab(true); if ($("rOut").hidden && !$("rGo").disabled) $("rGo").click(); });
+
+// ---------- danh sách tài khoản ----------
+async function loadUsers() {
+  $("umsg").textContent = "";
+  try { users = (await api("listUsers", {})).users; renderUsers(); }
+  catch (e) { $("umsg").textContent = e.message; }
+}
+function renderUsers() {
+  const q = $("uq").value.trim().toLowerCase(), role = $("urole").value;
+  const list = users.filter(u => (!q || u.username.includes(q)) && (!role || u.role === role));
+  $("ucnt").textContent = list.length + " / " + users.length + " tài khoản";
+  $("ubody").innerHTML = list.length ? list.map(u => {
+    const self = u.username === me, master = u.role === "master";
+    const acts = (!master && !self ? `<button class="btn ghost sm" data-a="edit" data-u="${esc(u.username)}" type="button">Sửa</button>` : "") +
+      (!master || self ? `<button class="btn ghost sm" data-a="pass" data-u="${esc(u.username)}" type="button">Mật khẩu</button>` : "") +
+      (!master && !self ? `<button class="btn danger sm" data-a="del" data-u="${esc(u.username)}" type="button">Xóa</button>` : "");
+    return `<tr><td><b>${esc(u.username)}</b>${self ? ' <span class="muted">(bạn)</span>' : ""}</td>` +
+      `<td><span class="tag ${esc(u.role)}">${esc(ROLE[u.role])}</span></td><td>${esc(CO[u.company] || "")}</td>` +
+      `<td>${u.disabled ? '<span class="tag off">Đã khóa</span>' : "Hoạt động"}</td><td>${esc(when(u.lastSignIn))}</td><td class="acts">${acts}</td></tr>`;
+  }).join("") : '<tr><td colspan="6" class="muted">Không có tài khoản nào.</td></tr>';
+}
+$("uq").addEventListener("input", renderUsers);
+$("urole").addEventListener("change", renderUsers);
+$("ubody").addEventListener("click", async ev => {
+  const b = ev.target.closest("button[data-a]");
+  if (!b) return;
+  const u = users.find(x => x.username === b.dataset.u);
+  if (!u) return;
+  if (b.dataset.a === "edit") openUser(u);
+  else if (b.dataset.a === "pass") openPass(u);
+  else if (b.dataset.a === "del") {
+    if (!confirm(`Xóa tài khoản ${u.username}?\nNgười này sẽ không đăng nhập được nữa. Lịch sử nhận suất vẫn được giữ.`)) return;
+    try { await api("deleteUser", { username: u.username }); await loadUsers(); $("umsg").className = "ok"; $("umsg").textContent = "Đã xóa tài khoản " + u.username + "."; }
+    catch (e) { $("umsg").className = "err"; $("umsg").textContent = e.message; }
+  }
+});
+
+// ---------- thêm / sửa tài khoản ----------
+let editing = null;
+function syncCo() { $("uCoBox").hidden = $("uRole").value !== "admin"; }
+function openUser(u) {
+  editing = u;
+  $("uTitle").textContent = u ? "Sửa tài khoản" : "Thêm tài khoản";
+  $("uName").value = u ? u.username : ""; $("uName").disabled = !!u;
+  $("uPass").value = ""; $("uPassBox").hidden = !!u; $("uPass").required = !u;
+  $("uRole").value = u ? u.role : "user";
+  $("uCo").value = u && u.company ? u.company : "VITC";
+  $("uOff").checked = !!(u && u.disabled); $("uOffBox").hidden = !u;
+  $("uErr").textContent = ""; syncCo();
+  $("udlg").showModal();
+}
+$("addBtn").addEventListener("click", () => { $("umsg").textContent = ""; openUser(null); });
+$("uRole").addEventListener("change", syncCo);
+$("uCancel").addEventListener("click", () => $("udlg").close());
+$("uf").addEventListener("submit", async ev => {
+  ev.preventDefault(); $("uErr").textContent = ""; $("uSave").disabled = true;
+  const body = { username: $("uName").value, role: $("uRole").value, company: $("uRole").value === "admin" ? $("uCo").value : "" };
+  try {
+    if (editing) await api("updateUser", { ...body, username: editing.username, disabled: $("uOff").checked });
+    else await api("createUser", { ...body, password: $("uPass").value });
+    $("udlg").close(); await loadUsers();
+    $("umsg").className = "ok"; $("umsg").textContent = editing ? "Đã lưu thay đổi." : "Đã thêm tài khoản.";
+  } catch (e) { $("uErr").textContent = e.message; }
+  finally { $("uSave").disabled = false; }
+});
+
+// ---------- đổi mật khẩu ----------
+let passFor = null;
+function openPass(u) {
+  passFor = u;
+  $("pWho").textContent = "Tài khoản: " + u.username + (u.username === me ? " (bạn)" : "");
+  $("pNew").value = $("pNew2").value = ""; $("pErr").textContent = "";
+  $("pdlg").showModal();
+}
+$("meBtn").addEventListener("click", () => openPass({ username: me }));
+$("pCancel").addEventListener("click", () => $("pdlg").close());
+$("pf").addEventListener("submit", async ev => {
+  ev.preventDefault(); $("pErr").textContent = "";
+  if ($("pNew").value !== $("pNew2").value) { $("pErr").textContent = "Hai mật khẩu không giống nhau."; return; }
+  $("pSave").disabled = true;
+  try {
+    const r = await api("setPassword", { username: passFor.username, password: $("pNew").value });
+    $("pdlg").close();
+    if (r.self) { alert("Đã đổi mật khẩu. Vui lòng đăng nhập lại bằng mật khẩu mới."); signOut(auth); return; }
+    $("umsg").className = "ok"; $("umsg").textContent = "Đã đổi mật khẩu cho " + passFor.username + ". Người này cần đăng nhập lại.";
+  } catch (e) { $("pErr").textContent = e.message; }
+  finally { $("pSave").disabled = false; }
+});
+
+// ---------- báo cáo ----------
+let rep = null;
+const rows = (list, cols) => list.length ? list.map(r => "<tr>" + cols.map(c => c === "name" || c === "date" || c === "company" ? `<td>${esc(c === "date" ? vnDate(r[c]) : r[c])}</td>` : `<td class="num">${nf(r[c])}</td>`).join("") + "</tr>").join("")
+  : `<tr><td colspan="${cols.length}" class="muted">Không có dữ liệu.</td></tr>`;
+
+$("rGo").addEventListener("click", async () => {
+  $("rmsg").className = "err"; $("rmsg").textContent = "";
+  if (!$("rFrom").value || !$("rTo").value) { $("rmsg").textContent = "Chọn đủ khoảng ngày."; return; }
+  $("rGo").disabled = true; $("rGo").textContent = "Đang tải...";
+  try {
+    rep = await api("report", { from: $("rFrom").value, to: $("rTo").value, company: $("rCo").value });
+    renderReport(rep);
+  } catch (e) { $("rmsg").textContent = e.message; }
+  finally { $("rGo").disabled = false; $("rGo").textContent = "Xem báo cáo"; }
+});
+
+function renderReport(r) {
+  const tiles = [["Tổng số suất", r.total], ["Suất thường", r.thuong], ["Suất chay", r.chay], ["Số người đã nhận", r.people]];
+  if (r.refused != null) tiles.push(["Lượt bị từ chối", r.refused]);
+  $("tiles").innerHTML = tiles.map(t => `<div class="tile"><small>${esc(t[0])}</small><b>${nf(t[1])}</b></div>`).join("");
+  const max = Math.max(1, ...r.byDay.map(d => d.total));
+  $("chart").innerHTML = r.byDay.map(d =>
+    `<div class="col" title="${esc(vnDate(d.date))}: ${d.thuong} thường, ${d.chay} chay"><i class="b" style="height:${d.chay / max * 100}%"></i><i class="a" style="height:${d.thuong / max * 100}%"></i></div>`).join("");
+  $("tDay").innerHTML = rows(r.byDay, ["date", "thuong", "chay", "total"]);
+  $("tCo").innerHTML = rows(r.byCompany, ["name", "thuong", "chay", "total"]);
+  $("tSc").innerHTML = rows(r.byScanner, ["name", "thuong", "chay", "total"]);
+  $("tDept").innerHTML = rows(r.byDept, ["company", "name", "thuong", "chay", "total"]);
+  $("rOut").hidden = false; $("rCsv").disabled = false;
+}
+
+// xuất CSV (mở được bằng Excel, có BOM để giữ tiếng Việt)
+$("rCsv").addEventListener("click", () => {
+  if (!rep) return;
+  const q = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const out = [];
+  const block = (title, head, list, cols) => { out.push(q(title)); out.push(head.map(q).join(",")); list.forEach(r => out.push(cols.map(c => q(c === "date" ? vnDate(r[c]) : r[c])).join(","))); out.push(""); };
+  out.push(q("Báo cáo từ " + vnDate(rep.from) + " đến " + vnDate(rep.to) + (rep.company ? " - " + rep.company : " - toàn hệ thống")));
+  out.push([q("Tổng số suất"), rep.total, q("Thường"), rep.thuong, q("Chay"), rep.chay, q("Số người"), rep.people].join(",")); out.push("");
+  block("Theo ngày", ["Ngày", "Thường", "Chay", "Tổng"], rep.byDay, ["date", "thuong", "chay", "total"]);
+  block("Theo công ty", ["Công ty", "Thường", "Chay", "Tổng"], rep.byCompany, ["name", "thuong", "chay", "total"]);
+  block("Theo tài khoản quét", ["Tài khoản", "Thường", "Chay", "Tổng"], rep.byScanner, ["name", "thuong", "chay", "total"]);
+  block("Theo phòng ban", ["Công ty", "Phòng ban", "Thường", "Chay", "Tổng"], rep.byDept, ["company", "name", "thuong", "chay", "total"]);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + out.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+  a.download = `bao-cao-${rep.from}_${rep.to}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+</script>
+</body>
+</html>
