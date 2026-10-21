@@ -128,7 +128,6 @@
   <header class="bar">
     <div class="who"><b id="whoName">-</b><span id="whoNote">Quét suất thường</span></div>
     <span id="vegBadge" class="badge" hidden>Suất chay</span>
-    <a id="adminLink" class="btn" href="/admin.html" style="display:inline-flex;align-items:center;text-decoration:none" hidden>Quản trị</a>
     <button id="logoutBtn" class="btn" type="button">Đăng xuất</button>
   </header>
 
@@ -211,6 +210,18 @@ function beep(freq, ms) {
     o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + ms / 1000);
   } catch (e) {}
 }
+// Âm thanh hợp lệ / không hợp lệ: đặt 2 file vào public/sound/ (valid.mp3, invalid.mp3). Thiếu file thì dùng tiếng bíp cũ.
+const sounds = { ok: new Audio("/sound/valid.mp3"), bad: new Audio("/sound/invalid.mp3") };
+Object.values(sounds).forEach(a => { a.preload = "auto"; });
+function playSound(kind, fbFreq, fbMs) {
+  const a = sounds[kind];
+  try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => beep(fbFreq, fbMs)); }
+  catch (e) { beep(fbFreq, fbMs); }
+}
+// trình duyệt chỉ cho phát tiếng sau khi người dùng chạm vào trang: "mở khóa" ngay lần chạm đầu tiên
+addEventListener("pointerdown", () => {
+  Object.values(sounds).forEach(a => { a.muted = true; a.play().then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; }); });
+}, { once: true });
 const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
 
 // ---------- đăng nhập ----------
@@ -240,11 +251,11 @@ onAuthStateChanged(auth, async user => {
     return;
   }
   const tok = await user.getIdTokenResult();
+  if (String(tok.claims.role || "").toUpperCase() === "ADMIN") { location.replace("/admin.html"); return; }   // tài khoản admin dùng trang quản trị, không quét
   const veg = String(tok.claims.role || "").toUpperCase() === "CHAY";
   $("whoName").textContent = user.displayName || user.email.split("@")[0];
-  $("whoNote").textContent = veg ? "Chỉ nhận nhân viên đã đăng ký chay" : "Quét suất thường";
+  $("whoNote").textContent = veg ? "Chỉ nhận nhân viên đăng ký phiếu chay hôm nay" : "Quét suất thường";
   $("vegBadge").hidden = !veg;
-  $("adminLink").hidden = String(tok.claims.role || "").toUpperCase() !== "ADMIN";   // chỉ admin thấy nút Quản trị
   $("login").hidden = true; $("app").hidden = false;
   startCam();
   ping(); clearInterval(pingTimer); pingTimer = setInterval(ping, 4 * 60 * 1000);   // giữ hàm máy chủ "nóng"
@@ -308,7 +319,7 @@ async function handle(payload, force) {
     if (e.code === "functions/unauthenticated") { show("bad", "Hết phiên đăng nhập", "", "", "Vui lòng đăng nhập lại.", ""); signOut(auth); }
     else show("bad", "Chưa ghi nhận được", "", "", "Lỗi mạng hoặc máy chủ. Quét lại thẻ này.", "");
     console.warn("[scan] lỗi sau " + Math.round(performance.now() - T0) + " ms", e);
-    beep(220, 400); buzz([200, 80, 200]);
+    playSound("bad", 220, 400); buzz([200, 80, 200]);
     lastKey = "";   // cho phép quét lại ngay
   } finally { busy = false; }
 }
@@ -320,14 +331,14 @@ function render(r, T0, tm) {
   const meta = [emp.msnv, emp.donVi, x.CONG_TY].filter(Boolean).join(" - ");
   if (r.ok) {
     show("ok", "Đã ghi nhận", emp.hoTen, meta, "", r.note || "");
-    beep(880, 160); buzz(80); addLog("ok", emp.hoTen || emp.msnv, "Đã ghi nhận", sec);
+    playSound("ok", 880, 160); buzz(80); addLog("ok", emp.hoTen || emp.msnv, "Đã ghi nhận", sec);
   } else if (r.duplicate) {
     show("dup", "Đã lấy suất ăn", emp.hoTen, meta, r.message + (r.next ? " Được quét lại lúc " + r.next + "." : ""), "");
-    beep(440, 300); buzz([120, 60, 120]); addLog("dup", emp.hoTen || emp.msnv, "Đã lấy suất lúc " + (r.time || "").split(" ")[0], sec);
+    playSound("bad", 440, 300); buzz([120, 60, 120]); addLog("dup", emp.hoTen || emp.msnv, "Đã lấy suất lúc " + (r.time || "").split(" ")[0], sec);
   } else {
-    const title = r.notFound ? "Không tìm thấy thẻ" : "Không cấp suất ăn";
+    const title = r.notFound ? "Không tìm thấy thẻ" : r.reason === "notveg" ? "Không đăng ký phiếu chay" : "Không cấp suất ăn";
     show("bad", title, emp.hoTen, meta, r.message || "Không hợp lệ.", "");
-    beep(220, 450); buzz([250, 80, 250]); addLog("bad", emp.hoTen || "Thẻ không hợp lệ", r.message || "", sec);
+    playSound("bad", 220, 450); buzz([250, 80, 250]); addLog("bad", emp.hoTen || "Thẻ không hợp lệ", r.message || "", sec);
   }
   recordTiming(ms, tm || {}, r);
 }

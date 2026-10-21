@@ -154,9 +154,9 @@ async function recordMeal(token, data) {
     return { ok: false, blocked: true, reason: block.code, message: block.message, employee: emp };
   }
 
-  // 3) Tài khoản quét suất chay: chỉ nhân viên đã đăng ký chay
-  if (vegMode && !emp.veg) {
-    const message = 'Nhân viên chưa đăng ký ăn chay. Không cấp suất ăn chay.';
+  // 3) Tài khoản quét suất chay: chỉ nhân viên được admin đăng ký ăn chay ĐÚNG NGÀY HÔM NAY (qua ngày tự hết hiệu lực)
+  if (vegMode && !(Array.isArray(e.vegDates) && e.vegDates.includes(ymd(nowMs)))) {
+    const message = 'Nhân viên không đăng ký phiếu chay hôm nay. Không cấp suất ăn chay.';
     await logRefused(emp, message, scanner);
     return { ok: false, blocked: true, reason: 'notveg', message, employee: emp };
   }

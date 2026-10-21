@@ -52,6 +52,30 @@
 
   select { width:100%; height:46px; padding:0 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
   .cnt { color:var(--muted); margin:-8px 0 0; }
+  .btn.danger { background:transparent; color:var(--bad); border:1.5px solid var(--bad); }
+  .row { display:flex; gap:10px; }
+  .row select { flex:1; }
+  dialog { border:0; border-radius:var(--radius); padding:0; width:min(440px, calc(100% - 24px)); }
+  dialog::backdrop { background:rgba(15,27,45,.5); }
+  dialog form { padding:20px; }
+  dialog h2 { margin:0 0 4px; font-size:18px; }
+  dialog .chk { display:flex; align-items:center; gap:8px; margin-top:14px; font-weight:500; }
+  dialog .chk input { width:20px; height:20px; }
+  input[type=date] { width:100%; height:46px; padding:0 12px; border:1.5px solid var(--line); border-radius:10px; font:inherit; }
+  .radios { margin-top:12px; }
+  .radios label { display:inline-flex; align-items:center; gap:8px; margin:0 20px 0 0; font-weight:500; }
+  .radios input { width:20px; height:20px; }
+  #vMsg { min-height:22px; margin:10px 0 0; }
+  #vMsg.err { color:var(--bad); }
+  .it { display:flex; gap:8px; align-items:stretch; }
+  .it > button { width:auto; flex:1; min-width:0; }
+  .it.sel > button { border-color:var(--blue); background:#F3F6FF; }
+  .ck { display:flex; align-items:center; margin:0; padding:0 4px; cursor:pointer; }
+  .ck input { width:22px; height:22px; }
+  #dwrap { display:grid; gap:16px; margin:2px 0 8px; }
+  #bulk input[type=date] { margin-bottom:4px; }
+  #bMsg { min-height:22px; margin:10px 0 0; }
+  #bMsg.err { color:var(--bad); }
   #pArea { display:none; }
   .pcard { width:85.6mm; height:54mm; display:flex; align-items:center; gap:4mm; padding:4mm; background:#fff; font-family:Arial,sans-serif; color:#111; overflow:hidden; }
   .pcard img { width:40mm; height:40mm; flex:none; }
@@ -92,38 +116,85 @@
 <div id="app" hidden>
   <header class="bar">
     <b id="who">Quản trị</b>
-    <a class="btn ghost" href="/">Trang quét</a>
     <button id="logoutBtn" class="btn ghost" type="button">Đăng xuất</button>
   </header>
   <main class="wrap">
-    <select id="dept" aria-label="Phòng ban"><option value="">Chọn phòng ban</option></select>
+    <div class="row">
+      <select id="dept" aria-label="Phòng ban"><option value="">Chọn phòng ban</option></select>
+      <button id="addBtn" class="btn" type="button">Thêm nhân viên</button>
+    </div>
     <form id="sf" class="search">
       <input id="q" type="text" placeholder="MSNV, mã thẻ hoặc họ tên" autocomplete="off" required>
       <button class="btn" type="submit">Tìm</button>
     </form>
     <div id="msg" class="err" role="status"></div>
     <p id="cnt" class="cnt"></p>
-    <ul id="list" class="list"></ul>
+    <section id="bulk" class="panel" hidden>
+      <h2>Đăng ký ăn chay cho nhiều nhân viên</h2>
+      <input id="bDate" type="date" aria-label="Ngày ăn chay">
+      <div class="radios"><label><input id="bAll" type="checkbox"> Chọn tất cả</label> <span><b id="bCnt">0</b> đã chọn</span></div>
+      <div class="actions">
+        <button id="bOn" class="btn" type="button">Đăng ký ăn chay</button>
+        <button id="bOff" class="btn ghost" type="button">Hủy ăn chay</button>
+      </div>
+      <p id="bMsg" role="status"></p>
+    </section>
+    <div id="list" class="list"></div>
+    <div id="dhome">
+    <div id="dwrap" hidden>
 
-    <section id="detail" class="panel" hidden>
+    <section id="detail" class="panel">
       <p id="dName" class="name"></p>
       <dl id="dInfo"></dl>
       <p id="dWarn" class="warn" hidden></p>
       <div class="actions">
-        <button id="printBtn" class="btn ghost" type="button">In thẻ hiện tại</button>
+        <button id="printBtn" class="btn ghost" type="button">In lại thẻ</button>
         <button id="reissueBtn" class="btn" type="button">Cấp lại thẻ</button>
+        <button id="editBtn" class="btn ghost" type="button">Sửa</button>
+        <button id="delBtn" class="btn danger" type="button">Xóa</button>
       </div>
     </section>
-    <section id="cardsP" class="panel" hidden>
+    <section id="vegP" class="panel">
+      <h2>Đăng ký ăn chay</h2>
+      <div class="row">
+        <input id="vDate" type="date" aria-label="Ngày ăn chay">
+      </div>
+      <div class="radios">
+        <label><input type="radio" name="veg" value="0" checked> Ăn thường</label>
+        <label><input type="radio" name="veg" value="1"> Ăn chay</label>
+      </div>
+      <p id="vMsg" role="status"></p>
+      <p id="vList" class="cnt"></p>
+    </section>
+    <section id="cardsP" class="panel">
       <h2>Thẻ</h2>
       <table><thead><tr><th>Mã thẻ</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead><tbody id="cards"></tbody></table>
     </section>
-    <section id="mealsP" class="panel" hidden>
+    <section id="mealsP" class="panel">
       <h2>Lần nhận suất gần nhất</h2>
       <table><thead><tr><th>Thời gian</th><th>Loại</th><th>Máy quét</th></tr></thead><tbody id="meals"></tbody></table>
     </section>
+    </div>
+    </div>
   </main>
 </div>
+
+<dialog id="dlg">
+  <form id="ef">
+    <h2 id="fTitle">Thêm nhân viên</h2>
+    <label for="fMsnv">MSNV</label><input id="fMsnv" type="text" maxlength="20" autocomplete="off" required>
+    <label for="fName">Họ tên</label><input id="fName" type="text" maxlength="100" autocomplete="off" required>
+    <label for="fDept">Phòng ban</label><input id="fDept" type="text" maxlength="100" list="deptList" autocomplete="off" required>
+    <datalist id="deptList"></datalist>
+    <label for="fExp">Hết hạn hợp đồng (để trống nếu không có)</label><input id="fExp" type="date">
+    <label for="fStatus">Trạng thái</label><select id="fStatus"></select>
+    <div id="fErr" class="err" role="alert"></div>
+    <div class="row" style="margin-top:8px">
+      <button id="fCancel" class="btn ghost" type="button" style="flex:1">Hủy</button>
+      <button id="fSave" class="btn" type="submit" style="flex:1">Lưu</button>
+    </div>
+  </form>
+</dialog>
 
 <div id="pArea"></div>
 
@@ -177,8 +248,14 @@ onAuthStateChanged(auth, async user => {
 
 // ---------- tìm kiếm ----------
 let cur = null;
-let depts = [];
-const clearAll = () => { $("list").innerHTML = ""; $("cnt").textContent = ""; ["detail", "cardsP", "mealsP"].forEach(x => $(x).hidden = true); cur = null; };
+let depts = [], curDept = null;
+const picked = new Set();               // nhân viên đang được tick để đăng ký chay hàng loạt
+let lastResults = [], lastChecks = false;
+const clearAll = () => {
+  curDept = null; picked.clear(); lastResults = [];
+  $("dhome").appendChild($("dwrap")); $("dwrap").hidden = true; $("bulk").hidden = true;
+  $("list").innerHTML = ""; $("cnt").textContent = ""; cur = null;
+};
 
 $("sf").addEventListener("submit", async ev => {
   ev.preventDefault(); $("msg").textContent = ""; clearAll(); $("dept").value = "";
@@ -200,7 +277,7 @@ function render(d) {
   const e = d.employee, active = d.cards.find(c => !c.revoked);
   $("dName").textContent = e.hoTen || e.msnv;
   const rows = [["MSNV", e.msnv], ["Khóa", e.key], ["Đơn vị", e.donVi], ["Công ty", e.congTy || e.sheet], ["Hết hạn HĐ", e.hetHan && !e.hetHan.startsWith("INVALID") ? e.hetHan.split("-").reverse().join("/") : e.hetHan],
-    ["Trạng thái", e.trangThai || "Bình thường"], ["Suất chay", e.veg ? "Có" : "Không"], ["Thẻ đang dùng", active ? active.code : "Chưa có"], ["Lần nhận gần nhất", when(d.lastMeal)]];
+    ["Trạng thái", e.trangThai || "Bình thường"], ["Ăn chay hôm nay", e.vegDates.includes(d.today) ? "Có" : "Không"], ["Thẻ đang dùng", active ? active.code : "Chưa có"], ["Lần nhận gần nhất", when(d.lastMeal)]];
   $("dInfo").innerHTML = rows.filter(r => r[1]).map(r => `<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join("");
   $("dWarn").hidden = true;
   $("printBtn").disabled = !active;
@@ -208,19 +285,68 @@ function render(d) {
     : '<tr><td colspan="3">Chưa có thẻ.</td></tr>';
   $("meals").innerHTML = d.meals.length ? d.meals.map(m => `<tr><td>${esc(when(m.time))}</td><td>${m.loai === "chay" ? "Chay" : "Thường"}</td><td>${esc(m.scanner)}</td></tr>`).join("")
     : '<tr><td colspan="3">Chưa có lượt nhận suất.</td></tr>';
-  ["detail", "cardsP", "mealsP"].forEach(x => $(x).hidden = false);
-  $("detail").scrollIntoView();
+  $("dwrap").hidden = false;
+  renderVeg();
 }
 
-function showList(results) {
+// Danh sách nhân viên. Chi tiết (#dwrap) được chèn NGAY DƯỚI người vừa chọn, không cuộn trang.
+function showList(results, checks) { lastResults = results; lastChecks = !!checks; renderList(); }
+function renderList() {
+  $("dhome").appendChild($("dwrap"));          // đưa khung chi tiết ra ngoài để không bị xóa khi dựng lại danh sách
   $("list").innerHTML = "";
-  results.forEach(r => {
-    const li = document.createElement("li");
-    li.innerHTML = `<button type="button"><b>${esc(r.hoTen)}</b><br>${esc([r.msnv, r.donVi].filter(Boolean).join(" - "))}</button>`;
-    li.firstChild.addEventListener("click", () => open(r.key));
-    $("list").appendChild(li);
+  const date = $("bDate").value;
+  lastResults.forEach(r => {
+    const it = document.createElement("div");
+    it.className = "it" + (cur && cur.employee.key === r.key && !$("dwrap").hidden ? " sel" : "");
+    it.innerHTML = (lastChecks ? `<label class="ck"><input type="checkbox" aria-label="Chọn ${esc(r.hoTen)}"${picked.has(r.key) ? " checked" : ""}></label>` : "") +
+      `<button type="button"><b>${esc(r.hoTen)}</b>${lastChecks && r.vegDates.includes(date) ? ' <span class="tag">Chay</span>' : ""}<br>${esc([r.msnv, r.donVi].filter(Boolean).join(" - "))}</button>`;
+    if (lastChecks) it.querySelector("input").addEventListener("change", ev => { ev.target.checked ? picked.add(r.key) : picked.delete(r.key); updPick(); });
+    it.querySelector("button").addEventListener("click", () => pick(it, r.key));
+    $("list").appendChild(it);
+    if (it.classList.contains("sel")) it.after($("dwrap"));
   });
+  updPick();
 }
+function updPick() {
+  $("bCnt").textContent = picked.size;
+  $("bAll").checked = lastResults.length > 0 && picked.size === lastResults.length;
+}
+async function pick(it, key) {
+  const wrap = $("dwrap");
+  if (!wrap.hidden && cur && cur.employee.key === key && it.nextSibling === wrap) { wrap.hidden = true; it.classList.remove("sel"); return; }   // bấm lần nữa để thu gọn
+  document.querySelectorAll(".it.sel").forEach(x => x.classList.remove("sel"));
+  it.classList.add("sel");
+  wrap.hidden = true; it.after(wrap);
+  await open(key);
+}
+
+// ---------- đăng ký ăn chay hàng loạt theo phòng ban ----------
+$("bAll").addEventListener("change", () => {
+  picked.clear();
+  if ($("bAll").checked) lastResults.forEach(r => picked.add(r.key));
+  document.querySelectorAll("#list .ck input").forEach(c => { c.checked = $("bAll").checked; });
+  updPick();
+});
+$("bDate").addEventListener("change", renderList);   // cập nhật nhãn "Chay" theo ngày đang chọn
+async function bulk(on) {
+  const keys = [...picked], date = $("bDate").value;
+  $("bMsg").className = "err";
+  if (!keys.length) { $("bMsg").textContent = "Chưa chọn nhân viên nào."; return; }
+  if (!date) { $("bMsg").textContent = "Chưa chọn ngày."; return; }
+  if (!confirm(`${on ? "Đăng ký ăn chay" : "Hủy ăn chay"} ngày ${vn(date)} cho ${keys.length} nhân viên?`)) return;
+  $("bOn").disabled = $("bOff").disabled = true; $("bMsg").textContent = "";
+  try {
+    await api("setVegBulk", { keys, date, veg: on });
+    picked.clear();
+    await showDept(curDept);
+    if (!$("dwrap").hidden && cur) await open(cur.employee.key);
+    $("bMsg").className = "ok";
+    $("bMsg").textContent = `${on ? "Đã đăng ký ăn chay" : "Đã hủy ăn chay"} ngày ${vn(date)} cho ${keys.length} nhân viên.`;
+  } catch (err) { $("bMsg").textContent = err.message; }
+  finally { $("bOn").disabled = $("bOff").disabled = false; }
+}
+$("bOn").addEventListener("click", () => bulk(true));
+$("bOff").addEventListener("click", () => bulk(false));
 
 // ---------- công ty + phòng ban ----------
 async function loadDepts() {
@@ -228,20 +354,65 @@ async function loadDepts() {
     const r = await api("departments", {});
     $("who").textContent = "Quản trị: " + r.company;
     depts = r.departments;
+    if (r.today) {
+      $("bDate").min = r.today;
+      $("bDate").max = new Date(Date.parse(r.today) + 60 * 86400000).toISOString().slice(0, 10);
+      if (!$("bDate").value || $("bDate").value < r.today) $("bDate").value = r.today;
+    }
     $("dept").innerHTML = `<option value="">Chọn phòng ban (${depts.length})</option>` +
       depts.map((d, i) => `<option value="${i}">${esc(d.name || "(Chưa có đơn vị)")} - ${d.count} người</option>`).join("");
+    $("deptList").innerHTML = depts.filter(d => d.name).map(d => `<option value="${esc(d.name)}">`).join("");
   } catch (e) { $("msg").textContent = e.message; }
 }
 $("dept").addEventListener("change", async () => {
   clearAll(); $("msg").textContent = "";
   const d = depts[$("dept").value];
   if (!d) return;
-  try {
-    const { results } = await api("byDept", { dept: d.name });
-    $("cnt").textContent = results.length + " nhân viên";
-    showList(results);
-  } catch (e) { $("msg").textContent = e.message; }
+  try { await showDept(d); } catch (e) { $("msg").textContent = e.message; }
 });
+async function showDept(d) {
+  curDept = d;
+  const { results } = await api("byDept", { dept: d.name });
+  $("cnt").textContent = results.length + " nhân viên";
+  $("bulk").hidden = false;
+  showList(results, true);
+}
+// sau khi thêm/sửa/xóa: nạp lại số người từng phòng ban và danh sách đang xem
+async function afterChange() {
+  const keep = curDept;
+  await loadDepts();
+  const i = keep ? depts.findIndex(x => x.name === keep.name) : -1;
+  if (i >= 0) { $("dept").value = i; await showDept(depts[i]); }
+}
+
+// ---------- đăng ký ăn chay theo ngày (qua ngày tự về ăn thường) ----------
+const vn = d => d.split("-").reverse().join("/");
+function syncVeg() {
+  const on = cur.employee.vegDates.includes($("vDate").value);
+  document.querySelector('input[name=veg][value="' + (on ? 1 : 0) + '"]').checked = true;
+}
+function renderVeg() {
+  const e = cur.employee, t = cur.today;
+  $("vDate").min = t;
+  $("vDate").max = new Date(Date.parse(t) + 60 * 86400000).toISOString().slice(0, 10);
+  if (!$("vDate").value || $("vDate").value < t) $("vDate").value = t;
+  $("vMsg").textContent = "";
+  $("vList").textContent = e.vegDates.length ? "Đã đăng ký ăn chay: " + e.vegDates.map(vn).join(", ") : "Chưa đăng ký ngày nào.";
+  syncVeg();
+}
+$("vDate").addEventListener("change", () => cur && syncVeg());
+document.querySelectorAll("input[name=veg]").forEach(r => r.addEventListener("change", async () => {
+  if (!cur) return;
+  const on = r.value === "1", date = $("vDate").value;
+  if (!date) return syncVeg();
+  try {
+    const res = await api("setVeg", { key: cur.employee.key, date, veg: on });
+    cur.employee.vegDates = res.employee.vegDates;
+    render(cur);
+    $("vMsg").className = "ok";
+    $("vMsg").textContent = (on ? "Đã đăng ký ăn chay ngày " : "Đã hủy ăn chay ngày ") + vn(date) + ".";
+  } catch (err) { $("vMsg").className = "err"; $("vMsg").textContent = err.message; syncVeg(); }
+}));
 
 // ---------- in / cấp lại thẻ ----------
 async function printCard(e, code) {
@@ -252,9 +423,58 @@ async function printCard(e, code) {
   window.print();
 }
 
-$("printBtn").addEventListener("click", () => {
-  const a = cur && cur.cards.find(c => !c.revoked);
-  if (a) printCard(cur.employee, a.code);
+$("printBtn").addEventListener("click", async () => {
+  if (!cur) return;
+  $("printBtn").disabled = true; $("msg").textContent = "";
+  try { const r = await api("reprint", { key: cur.employee.key }); await printCard(r.employee, r.code); }
+  catch (err) { $("msg").textContent = err.message; }
+  finally { $("printBtn").disabled = !(cur && cur.cards.some(c => !c.revoked)); }
+});
+
+// ---------- thêm / sửa / xóa nhân viên ----------
+let editing = null;
+function openForm(emp) {
+  editing = emp;
+  $("fTitle").textContent = emp ? "Sửa nhân viên" : "Thêm nhân viên";
+  $("fMsnv").value = emp ? emp.msnv : ""; $("fMsnv").disabled = !!emp;
+  $("fName").value = emp ? emp.hoTen : "";
+  $("fDept").value = emp ? emp.donVi : (curDept ? curDept.name : "");
+  $("fExp").value = emp && /^\d{4}-\d{2}-\d{2}$/.test(emp.hetHan) ? emp.hetHan : "";
+  const base = ["", "Khóa thẻ", "Nghỉ việc"];
+  if (emp && emp.trangThai && !base.includes(emp.trangThai)) base.push(emp.trangThai);
+  $("fStatus").innerHTML = base.map(v => `<option value="${esc(v)}">${esc(v || "Bình thường")}</option>`).join("");
+  $("fStatus").value = emp ? emp.trangThai : "";
+  $("fErr").textContent = "";
+  $("dlg").showModal();
+}
+$("addBtn").addEventListener("click", () => openForm(null));
+$("editBtn").addEventListener("click", () => cur && openForm(cur.employee));
+$("fCancel").addEventListener("click", () => $("dlg").close());
+$("ef").addEventListener("submit", async ev => {
+  ev.preventDefault(); $("fErr").textContent = ""; $("fSave").disabled = true;
+  const body = { msnv: $("fMsnv").value.trim(), hoTen: $("fName").value, donVi: $("fDept").value, hetHan: $("fExp").value, trangThai: $("fStatus").value };
+  try {
+    if (editing) {
+      await api("update", { key: editing.key, ...body });
+      $("dlg").close(); await open(editing.key); await afterChange();
+    } else {
+      const r = await api("create", body);
+      $("dlg").close(); await open(r.employee.key); await afterChange();
+      await printCard(r.employee, r.newCode);   // nhân viên mới được cấp thẻ ngay, in luôn
+    }
+  } catch (err) { $("fErr").textContent = err.message; }
+  finally { $("fSave").disabled = false; }
+});
+$("delBtn").addEventListener("click", async () => {
+  if (!cur) return;
+  const e = cur.employee;
+  if (!confirm(`Xóa nhân viên ${e.hoTen} (MSNV ${e.msnv})?\nThẻ của nhân viên sẽ bị thu hồi. Lịch sử nhận suất vẫn được giữ.`)) return;
+  try {
+    await api("delete", { key: e.key });
+    $("dwrap").hidden = true; cur = null;
+    await afterChange();
+    $("cnt").textContent = `Đã xóa ${e.hoTen}.`;
+  } catch (err) { $("msg").textContent = err.message; }
 });
 
 $("reissueBtn").addEventListener("click", async () => {
