@@ -7,6 +7,7 @@
  *******************************************************/
 // Nạp thư viện lười (lazy) để nếu thiếu thư viện / sai cấu hình thì hàm trả lỗi đọc được, không bị sập
 let db, Timestamp, getAuth;
+let warmed = false;   // false = lần gọi đầu tiên của máy chủ này (khởi động nguội)
 function init() {
   const app = require('firebase-admin/app');
   const fsx = require('firebase-admin/firestore');
@@ -218,6 +219,7 @@ async function diag() {
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
+  const t0 = Date.now();
   try {
     if (req.method === 'GET' && req.query && req.query.diag) return res.status(200).json(await diag());
     if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
@@ -230,9 +232,12 @@ module.exports = async (req, res) => {
     let token;
     try { token = await getAuth().verifyIdToken(m[1]); }
     catch (e) { console.error('verifyIdToken', e && e.message); return res.status(401).json({ error: 'unauthenticated' }); }
+    const t1 = Date.now();   // xong bước nạp thư viện + xác thực
     let data = req.body;
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { data = {}; } }
     const out = await recordMeal(token, data || {});
+    out.t = { auth: t1 - t0, logic: Date.now() - t1, cold: !warmed };   // ms, trang quét dùng để hiển thị tốc độ
+    warmed = true;
     return res.status(200).json(out);
   } catch (e) {
     console.error('recordMeal', e);

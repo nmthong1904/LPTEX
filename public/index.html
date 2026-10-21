@@ -92,8 +92,6 @@
   .side { display: grid; gap: 16px; align-content: start; }
   .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
   .panel h2 { margin: 0 0 10px; font-size: 16px; font-weight: 700; }
-  .manual { display: flex; gap: 10px; }
-  .manual input { flex: 1; min-width: 0; text-transform: uppercase; }
   .log { list-style: none; margin: 0; padding: 0; }
   .log li { display: flex; gap: 10px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line); }
   .log li:first-child { border-top: 0; }
@@ -102,6 +100,8 @@
   .log .t { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 14px; }
   .log .n { flex: 1; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
   .empty { color: var(--muted); margin: 0; }
+  .speed { white-space: pre-line; font-variant-numeric: tabular-nums; }
+  .result .timing { margin: 14px 0 0; font-size: 15px; opacity: .9; font-variant-numeric: tabular-nums; }
 
   @media (prefers-reduced-motion: no-preference) {
     .result { animation: pop .12s ease-out; }
@@ -144,21 +144,19 @@
         <p id="rMeta" class="meta"></p>
         <p id="rMsg" class="msg"></p>
         <span id="rChip" class="chip" hidden></span>
+        <p id="rTime" class="timing"></p>
       </div>
     </div>
 
     <div class="side">
-      <form id="manualForm" class="panel" autocomplete="off">
-        <h2>Nhập mã thẻ bằng tay</h2>
-        <div class="manual">
-          <input id="manualCode" type="text" placeholder="Mã thẻ 10 ký tự" maxlength="40" autocapitalize="characters" spellcheck="false" aria-label="Mã thẻ">
-          <button class="btn" type="submit">Ghi nhận</button>
-        </div>
-      </form>
       <section class="panel">
         <h2>Vừa quét</h2>
         <ul id="log" class="log"></ul>
         <p id="logEmpty" class="empty">Chưa có lượt quét nào.</p>
+      </section>
+      <section class="panel">
+        <h2>Tốc độ quét</h2>
+        <p id="speed" class="empty speed">Chưa có số liệu. Thời gian tính từ lúc camera đọc được mã QR đến lúc hiện kết quả.</p>
       </section>
     </div>
   </main>
@@ -181,10 +179,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);                         // tự nhớ đăng nhập trên thiết bị cho đến khi bấm Đăng xuất
 // Gọi hàm xử lý trên Vercel (/api/recordMeal) kèm Firebase ID token; trả về { data } giống bản Cloud Function cũ
-async function record(payload) {
+async function record(payload, tm) {
   const user = auth.currentUser;
   if (!user) { const e = new Error("unauthenticated"); e.code = "functions/unauthenticated"; throw e; }
+  const a0 = performance.now();
   const idToken = await user.getIdToken();
+  const a1 = performance.now();
   const r = await fetch("/api/recordMeal", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": "Bearer " + idToken },
@@ -192,7 +192,9 @@ async function record(payload) {
   });
   if (r.status === 401) { const e = new Error("unauthenticated"); e.code = "functions/unauthenticated"; throw e; }
   if (!r.ok) throw new Error("http " + r.status);
-  return { data: await r.json() };
+  const data = await r.json();
+  if (tm) { tm.token = a1 - a0; tm.http = performance.now() - a1; }
+  return { data };
 }
 
 const $ = id => document.getElementById(id);
@@ -295,33 +297,55 @@ async function handle(payload, force) {
   if (busy) return;
   if (!force && k === lastKey && now - lastAt < 4000) return;   // cùng 1 thẻ vừa quét xong
   lastKey = k; lastAt = now; busy = true;
+  const T0 = performance.now(), tm = {};   // mốc bắt đầu: camera vừa đọc xong mã QR
   show("wait", "Đang kiểm tra...", "", "", "", "");
   try {
-    const res = await record(payload);
-    render(res.data || {});
+    const res = await record(payload, tm);
+    render(res.data || {}, T0, tm);
   } catch (e) {
     if (e.code === "functions/unauthenticated") { show("bad", "Hết phiên đăng nhập", "", "", "Vui lòng đăng nhập lại.", ""); signOut(auth); }
     else show("bad", "Chưa ghi nhận được", "", "", "Lỗi mạng hoặc máy chủ. Quét lại thẻ này.", "");
+    console.warn("[scan] lỗi sau " + Math.round(performance.now() - T0) + " ms", e);
     beep(220, 400); buzz([200, 80, 200]);
     lastKey = "";   // cho phép quét lại ngay
   } finally { busy = false; }
 }
 
-function render(r) {
+function render(r, T0, tm) {
+  const ms = performance.now() - T0, sec = fmtSec(ms);
   const emp = r.employee || {};
   const x = emp.x || {};
   const meta = [emp.msnv, emp.donVi, x.CONG_TY].filter(Boolean).join(" - ");
   if (r.ok) {
     show("ok", "Đã ghi nhận", emp.hoTen, meta, "", r.note || "");
-    beep(880, 160); buzz(80); addLog("ok", emp.hoTen || emp.msnv, "Đã ghi nhận");
+    beep(880, 160); buzz(80); addLog("ok", emp.hoTen || emp.msnv, "Đã ghi nhận", sec);
   } else if (r.duplicate) {
     show("dup", "Đã lấy suất ăn", emp.hoTen, meta, r.message + (r.next ? " Được quét lại lúc " + r.next + "." : ""), "");
-    beep(440, 300); buzz([120, 60, 120]); addLog("dup", emp.hoTen || emp.msnv, "Đã lấy suất lúc " + (r.time || "").split(" ")[0]);
+    beep(440, 300); buzz([120, 60, 120]); addLog("dup", emp.hoTen || emp.msnv, "Đã lấy suất lúc " + (r.time || "").split(" ")[0], sec);
   } else {
     const title = r.notFound ? "Không tìm thấy thẻ" : "Không cấp suất ăn";
     show("bad", title, emp.hoTen, meta, r.message || "Không hợp lệ.", "");
-    beep(220, 450); buzz([250, 80, 250]); addLog("bad", emp.hoTen || "Thẻ không hợp lệ", r.message || "");
+    beep(220, 450); buzz([250, 80, 250]); addLog("bad", emp.hoTen || "Thẻ không hợp lệ", r.message || "", sec);
   }
+  recordTiming(ms, tm || {}, r);
+}
+
+// ---------- đo tốc độ ----------
+const times = [];
+const fmtSec = ms => (ms / 1000).toFixed(2).replace(".", ",") + " giây";
+function recordTiming(ms, tm, r) {
+  times.unshift(ms); times.length = Math.min(times.length, 30);
+  const s = r.t || {};
+  const server = s.auth != null ? s.auth + s.logic : null;
+  const net = tm.http != null ? Math.max(0, tm.http - (server || 0)) : null;
+  const sum = times.reduce((a, b) => a + b, 0);
+  $("rTime").textContent = "Thời gian xử lý: " + fmtSec(ms);
+  $("speed").textContent =
+    "Lần này: " + fmtSec(ms) + (s.cold ? "  (máy chủ khởi động nguội)" : "") + "\n" +
+    "  lấy token " + Math.round(tm.token || 0) + " ms · mạng " + (net == null ? "?" : Math.round(net)) + " ms · máy chủ " + (server == null ? "?" : server) + " ms" +
+    (s.auth != null ? " (xác thực " + s.auth + " + dữ liệu " + s.logic + ")" : "") + "\n" +
+    "Trung bình " + times.length + " lượt gần nhất: " + fmtSec(sum / times.length) + " · nhanh nhất " + fmtSec(Math.min(...times)) + " · chậm nhất " + fmtSec(Math.max(...times));
+  console.log("[scan]", { tong_ms: Math.round(ms), token_ms: Math.round(tm.token || 0), mang_ms: net == null ? null : Math.round(net), maychu_ms: server, cold: !!s.cold });
 }
 
 function show(kind, state, name, meta, msg, chip) {
@@ -332,6 +356,7 @@ function show(kind, state, name, meta, msg, chip) {
   $("rMeta").textContent = meta || "";
   $("rMsg").textContent = msg || "";
   $("rChip").textContent = chip || ""; $("rChip").hidden = !chip;
+  $("rTime").textContent = "";
   el.hidden = false;
   clearTimeout(hideTimer);
   if (kind !== "wait") hideTimer = setTimeout(hide, kind === "ok" ? 2200 : 4500);
@@ -339,9 +364,9 @@ function show(kind, state, name, meta, msg, chip) {
 function hide() { $("result").hidden = true; }
 $("result").addEventListener("click", hide);
 
-function addLog(kind, name, text) {
+function addLog(kind, name, text, sec) {
   const t = new Date().toLocaleTimeString("vi-VN", { hour12: false });
-  history.unshift({ kind, t, name, text });
+  history.unshift({ kind, t, name, text, sec });
   history.length = Math.min(history.length, 8);
   $("logEmpty").hidden = true;
   $("log").innerHTML = "";
@@ -349,19 +374,11 @@ function addLog(kind, name, text) {
     const li = document.createElement("li"); li.className = h.kind;
     li.innerHTML = '<span class="dot"></span><span class="t"></span><span class="n"></span>';
     li.querySelector(".t").textContent = h.t;
-    li.querySelector(".n").textContent = h.name + (h.kind === "ok" ? "" : " (" + h.text + ")");
+    li.querySelector(".n").textContent = h.name + (h.kind === "ok" ? "" : " (" + h.text + ")") + (h.sec ? " · " + h.sec : "");
     $("log").appendChild(li);
   });
 }
 
-// ---------- nhập tay ----------
-$("manualForm").addEventListener("submit", ev => {
-  ev.preventDefault();
-  const code = $("manualCode").value.trim();
-  if (!code) return;
-  handle({ the: code }, true);
-  $("manualCode").value = "";
-});
 </script>
 </body>
 </html>
