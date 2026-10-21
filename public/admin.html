@@ -91,6 +91,37 @@
     dialog { display:none !important; }
     #pArea { display:block; }
   }
+
+  /* ---------- responsive: điện thoại, máy tính bảng, máy tính ---------- */
+  html { -webkit-text-size-adjust: 100%; }
+  .wrap { grid-template-columns: minmax(0, 1fr); }
+  .wrap > *, .panel { min-width: 0; }
+  .login { min-height: 100dvh; }
+  #ddlg { max-height: 90dvh; }
+  #ddlg .panel { overflow-x: auto; }
+  dialog { max-height: calc(100dvh - 16px); }
+  /* máy tính: danh sách nhân viên chia 2 cột cho đỡ dài trang */
+  @media (min-width: 900px) {
+    .wrap { max-width: 1000px; }
+    .list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 600px) {
+    .bar { padding: 8px 12px; }
+    .wrap { padding: 12px; gap: 12px; }
+    .row.top { flex-wrap: wrap; }
+    .row.top select, .row.top .btn { flex: 1 1 100%; }
+    .panel { padding: 14px; }
+    .actions .btn { flex: 1 1 calc(50% - 5px); }
+    #bulk .actions .btn { flex: 1 1 100%; }
+    .name { font-size: 20px; }
+    dl { grid-template-columns: 1fr; gap: 0; }
+    dt { font-size: 13px; margin-top: 8px; }
+    #ddlg { width: calc(100% - 16px); }
+    #dwrap { padding: 10px; gap: 10px; }
+    dialog form { padding: 16px; }
+    .it { gap: 4px; }
+    .box { padding: 22px 18px; }
+  }
 </style>
 </head>
 <body>
@@ -122,7 +153,7 @@
     <button id="logoutBtn" class="btn ghost" type="button">Đăng xuất</button>
   </header>
   <main class="wrap">
-    <div class="row">
+    <div class="row top">
       <select id="dept" aria-label="Phòng ban"><option value="">Chọn phòng ban</option></select>
       <button id="addBtn" class="btn" type="button">Thêm nhân viên</button>
     </div>

@@ -77,6 +77,38 @@
   .chk input { width:20px; height:20px; }
   .row { display:flex; gap:10px; margin-top:16px; }
   .row .btn { flex:1; margin:0; width:auto; }
+
+  /* ---------- responsive: điện thoại, máy tính bảng, máy tính ---------- */
+  html { -webkit-text-size-adjust: 100%; }
+  .login { min-height: 100dvh; }
+  .wrap { grid-template-columns: minmax(0, 1fr); }
+  .wrap > *, .panel { min-width: 0; }
+  .tabs { overflow-x: auto; }
+  .grid2 { grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); }
+  dialog { max-height: calc(100dvh - 16px); }
+  @media (max-width: 640px) {
+    .bar { flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+    .bar b { flex: 1 1 100%; }
+    .bar .btn.ghost { flex: 1 1 0; }
+    .tabs { padding: 0 12px; margin-top: 12px; }
+    .tab { flex: 1; padding: 0 10px; }
+    .wrap { padding: 12px; gap: 12px; }
+    .panel { padding: 14px; }
+    .toolbar .btn { flex: 1 1 100%; }
+    .box { padding: 22px 18px; }
+    .tile b { font-size: 24px; }
+    .chart { height: 150px; }
+    dialog form { padding: 16px; }
+    /* bảng tài khoản chuyển thành thẻ trên điện thoại */
+    #paneU table, #paneU tbody, #paneU tr, #paneU td { display: block; width: 100%; }
+    #paneU thead { display: none; }
+    #paneU tr { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; margin-bottom: 10px; }
+    #paneU td { border: 0; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right; }
+    #paneU td::before { content: attr(data-l); color: var(--muted); text-align: left; flex: none; }
+    #paneU td.acts { justify-content: flex-end; flex-wrap: wrap; padding-top: 8px; }
+    #paneU td.acts::before { display: none; }
+    #paneU td.acts .btn { margin: 0 0 0 6px; }
+  }
 </style>
 </head>
 <body>
@@ -301,9 +333,9 @@ function renderUsers() {
     const acts = (!master && !self ? `<button class="btn ghost sm" data-a="edit" data-u="${esc(u.username)}" type="button">Sửa</button>` : "") +
       (!master || self ? `<button class="btn ghost sm" data-a="pass" data-u="${esc(u.username)}" type="button">Mật khẩu</button>` : "") +
       (!master && !self ? `<button class="btn danger sm" data-a="del" data-u="${esc(u.username)}" type="button">Xóa</button>` : "");
-    return `<tr><td><b>${esc(u.username)}</b>${self ? ' <span class="muted">(bạn)</span>' : ""}</td>` +
-      `<td><span class="tag ${esc(u.role)}">${esc(ROLE[u.role])}</span></td><td>${esc(CO[u.company] || "")}</td>` +
-      `<td>${u.disabled ? '<span class="tag off">Đã khóa</span>' : "Hoạt động"}</td><td>${esc(when(u.lastSignIn))}</td><td class="acts">${acts}</td></tr>`;
+    return `<tr><td data-l="Tài khoản"><b>${esc(u.username)}</b>${self ? ' <span class="muted">(bạn)</span>' : ""}</td>` +
+      `<td data-l="Vai trò"><span class="tag ${esc(u.role)}">${esc(ROLE[u.role])}</span></td><td data-l="Công ty">${esc(CO[u.company] || "-")}</td>` +
+      `<td data-l="Trạng thái">${u.disabled ? '<span class="tag off">Đã khóa</span>' : "Hoạt động"}</td><td data-l="Đăng nhập gần nhất">${esc(when(u.lastSignIn))}</td><td class="acts">${acts}</td></tr>`;
   }).join("") : '<tr><td colspan="6" class="muted">Không có tài khoản nào.</td></tr>';
 }
 $("uq").addEventListener("input", renderUsers);

@@ -106,6 +106,42 @@
     .result { animation: pop .12s ease-out; }
     @keyframes pop { from { opacity: .0; } to { opacity: 1; } }
   }
+
+  /* ---------- responsive: điện thoại (dọc/ngang), máy tính bảng, máy tính ---------- */
+  html { -webkit-text-size-adjust: 100%; }
+  html, body { height: auto; min-height: 100%; }
+  .grid > *, .side > * { min-width: 0; }
+  .stage { max-height: 70vh; max-height: 70dvh; }
+  .login { min-height: 100vh; min-height: 100dvh; }
+  @media (max-width: 480px) {
+    .bar { padding: 8px 12px; gap: 8px; }
+    .bar .btn { height: 36px; padding: 0 10px; font-size: 13px; }
+    .badge { font-size: 12px; padding: 3px 8px; }
+    .grid { padding: 10px; gap: 12px; }
+    .login { padding: 16px; }
+    .login form { padding: 22px 18px; }
+    .login h1 { font-size: 22px; }
+    .hint { right: 96px; font-size: 12px; }
+    .swap { height: 34px; padding: 0 10px; }
+    .panel { padding: 14px; }
+    .log li { flex-wrap: wrap; row-gap: 2px; }
+    .result { padding: 14px; }
+  }
+  /* điện thoại xoay ngang: camera bên trái, danh sách bên phải, không phải cuộn */
+  @media (orientation: landscape) and (max-height: 520px) {
+    .grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); padding: 8px; gap: 10px; }
+    .stage { aspect-ratio: auto; max-height: none; height: calc(100vh - 64px); height: calc(100dvh - 64px); }
+    .bar { padding: 6px 12px; }
+    .bar .btn { height: 34px; }
+    .result .state { margin-bottom: 6px; }
+    .result .msg, .result .meta, .result .chip { margin-top: 6px; }
+    .side { max-height: calc(100dvh - 64px); overflow-y: auto; }
+  }
+  /* màn hình lớn (máy tính, màn hình quầy): chữ kết quả to hơn cho dễ đọc từ xa */
+  @media (min-width: 1280px) {
+    .grid { max-width: 1280px; }
+    .result .person { font-size: 52px; }
+  }
 </style>
 </head>
 <body>
