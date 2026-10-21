@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F1B2D">
+<title>Quản trị nhà ăn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --paper:#EDF0F3; --card:#fff; --ink:#0F1B2D; --muted:#5B6676; --line:#CBD3DD; --blue:#1D4ED8; --ok:#0F7B55; --warn:#B45309; --bad:#B3261E; --radius:14px; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Be Vietnam Pro",system-ui,"Segoe UI",sans-serif; background:var(--paper); color:var(--ink); line-height:1.45; }
+  [hidden] { display:none !important; }
+  button, input { font:inherit; }
+  :focus-visible { outline:3px solid var(--blue); outline-offset:2px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; height:44px; padding:0 18px; border:0; border-radius:10px; background:var(--blue); color:#fff; font-weight:700; cursor:pointer; text-decoration:none; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .btn.ghost { background:transparent; color:var(--ink); border:1.5px solid var(--line); }
+  .bar .btn.ghost { color:#fff; border-color:rgba(255,255,255,.4); height:38px; font-size:14px; }
+  input[type=text], input[type=password] { width:100%; height:46px; padding:0 14px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
+  label { display:block; font-weight:700; font-size:14px; margin:14px 0 6px; }
+  .err { color:var(--bad); min-height:22px; margin-top:10px; }
+  .ok { color:var(--ok); font-weight:700; }
+
+  .login { min-height:100vh; display:grid; place-items:center; padding:24px; }
+  .box { width:100%; max-width:380px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:28px 24px; }
+  .box h1 { margin:0 0 6px; font-size:22px; }
+  .box .btn { width:100%; margin-top:18px; }
+
+  .bar { display:flex; align-items:center; gap:10px; padding:10px 16px; background:var(--ink); color:#fff; }
+  .bar b { flex:1; }
+  .wrap { max-width:860px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+  .search { display:flex; gap:10px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
+  .panel h2 { margin:0 0 10px; font-size:16px; }
+  .list { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+  .list button { width:100%; text-align:left; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; background:#fff; cursor:pointer; }
+  .list button:hover { border-color:var(--blue); }
+  dl { display:grid; grid-template-columns:max-content 1fr; gap:6px 16px; margin:0; }
+  dt { color:var(--muted); } dd { margin:0; font-weight:500; overflow-wrap:anywhere; }
+  .name { font-size:22px; font-weight:800; margin:0 0 10px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 6px; border-top:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; border-top:0; }
+  code { font-family:"Courier New",monospace; font-weight:700; letter-spacing:.5px; }
+  .tag { font-size:12px; font-weight:700; padding:2px 8px; border-radius:999px; color:#fff; background:var(--ok); }
+  .tag.off { background:var(--bad); }
+  .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+  .warn { color:var(--warn); font-weight:500; margin:10px 0 0; }
+
+  select { width:100%; height:46px; padding:0 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
+  .cnt { color:var(--muted); margin:-8px 0 0; }
+  #pArea { display:none; }
+  .pcard { width:85.6mm; height:54mm; display:flex; align-items:center; gap:4mm; padding:4mm; background:#fff; font-family:Arial,sans-serif; color:#111; overflow:hidden; }
+  .pcard img { width:40mm; height:40mm; flex:none; }
+  .pcard .co { font-size:9pt; font-weight:700; color:#1d4ed8; text-transform:uppercase; }
+  .pcard .nm { font-size:12.5pt; font-weight:700; line-height:1.15; margin:2mm 0; overflow-wrap:anywhere; }
+  .pcard .mt { font-size:9pt; line-height:1.35; }
+  .pcard .cd { font-family:"Courier New",monospace; font-size:9pt; margin-top:2.5mm; }
+  @media print {
+    @page { size:85.6mm 54mm; margin:0; }
+    body > *:not(#pArea) { display:none !important; }
+    #pArea { display:block; }
+  }
+</style>
+</head>
+<body>
+
+<section id="login" class="login" hidden>
+  <form id="loginForm" class="box">
+    <h1>Quản trị nhà ăn</h1>
+    <label for="user">Tài khoản</label>
+    <input id="user" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    <label for="pass">Mật khẩu</label>
+    <input id="pass" type="password" autocomplete="current-password" required>
+    <button id="loginBtn" class="btn" type="submit">Đăng nhập</button>
+    <div id="loginErr" class="err" role="alert"></div>
+  </form>
+</section>
+
+<section id="deny" class="login" hidden>
+  <div class="box">
+    <h1>Không có quyền truy cập</h1>
+    <p>Tài khoản này chỉ dùng để quét thẻ. Hãy đăng nhập bằng tài khoản quản trị.</p>
+    <a class="btn" href="/">Về trang quét</a>
+    <button id="denyOut" class="btn ghost" type="button">Đăng xuất</button>
+  </div>
+</section>
+
+<div id="app" hidden>
+  <header class="bar">
+    <b id="who">Quản trị</b>
+    <a class="btn ghost" href="/">Trang quét</a>
+    <button id="logoutBtn" class="btn ghost" type="button">Đăng xuất</button>
+  </header>
+  <main class="wrap">
+    <select id="dept" aria-label="Phòng ban"><option value="">Chọn phòng ban</option></select>
+    <form id="sf" class="search">
+      <input id="q" type="text" placeholder="MSNV, mã thẻ hoặc họ tên" autocomplete="off" required>
+      <button class="btn" type="submit">Tìm</button>
+    </form>
+    <div id="msg" class="err" role="status"></div>
+    <p id="cnt" class="cnt"></p>
+    <ul id="list" class="list"></ul>
+
+    <section id="detail" class="panel" hidden>
+      <p id="dName" class="name"></p>
+      <dl id="dInfo"></dl>
+      <p id="dWarn" class="warn" hidden></p>
+      <div class="actions">
+        <button id="printBtn" class="btn ghost" type="button">In thẻ hiện tại</button>
+        <button id="reissueBtn" class="btn" type="button">Cấp lại thẻ</button>
+      </div>
+    </section>
+    <section id="cardsP" class="panel" hidden>
+      <h2>Thẻ</h2>
+      <table><thead><tr><th>Mã thẻ</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead><tbody id="cards"></tbody></table>
+    </section>
+    <section id="mealsP" class="panel" hidden>
+      <h2>Lần nhận suất gần nhất</h2>
+      <table><thead><tr><th>Thời gian</th><th>Loại</th><th>Máy quét</th></tr></thead><tbody id="meals"></tbody></table>
+    </section>
+  </main>
+</div>
+
+<div id="pArea"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+const auth = getAuth(initializeApp({
+  apiKey: "AIzaSyCOOcRjv-WvEt-zBagHw0F7iA1RFRFPNyw",
+  authDomain: "lptex-2069b.firebaseapp.com",
+  projectId: "lptex-2069b",
+  appId: "1:274732050510:web:00fc0eeb2e3a561efb3b1f"
+}));
+
+const $ = id => document.getElementById(id);
+const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toEmail = u => String(u).trim().toLowerCase().replace(/[^a-z0-9._-]/g, "") + "@nhaan.local";
+const when = ms => ms ? new Date(ms).toLocaleString("vi-VN", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" }) : "";
+const show = id => ["login", "deny", "app"].forEach(x => $(x).hidden = x !== id);
+
+async function api(action, body) {
+  const token = await auth.currentUser.getIdToken();
+  const r = await fetch("/api/admin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+    body: JSON.stringify({ action, ...body })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.message || "Lỗi máy chủ (" + r.status + ")");
+  return j;
+}
+
+// ---------- đăng nhập ----------
+$("loginForm").addEventListener("submit", async ev => {
+  ev.preventDefault(); $("loginErr").textContent = ""; $("loginBtn").disabled = true;
+  try { await signInWithEmailAndPassword(auth, toEmail($("user").value), $("pass").value); $("pass").value = ""; }
+  catch (e) { $("loginErr").textContent = "Sai tài khoản hoặc mật khẩu."; }
+  finally { $("loginBtn").disabled = false; }
+});
+$("logoutBtn").addEventListener("click", () => signOut(auth));
+$("denyOut").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, async user => {
+  if (!user) return show("login");
+  const t = await user.getIdTokenResult(true);   // lấy claims mới nhất
+  if (String(t.claims.role || "").toUpperCase() !== "ADMIN") return show("deny");
+  show("app");
+  loadDepts();
+});
+
+// ---------- tìm kiếm ----------
+let cur = null;
+let depts = [];
+const clearAll = () => { $("list").innerHTML = ""; $("cnt").textContent = ""; ["detail", "cardsP", "mealsP"].forEach(x => $(x).hidden = true); cur = null; };
+
+$("sf").addEventListener("submit", async ev => {
+  ev.preventDefault(); $("msg").textContent = ""; clearAll(); $("dept").value = "";
+  try {
+    const { results } = await api("search", { q: $("q").value });
+    if (!results.length) { $("msg").textContent = "Không tìm thấy nhân viên nào."; return; }
+    if (results.length === 1) return open(results[0].key);
+    showList(results);
+  } catch (e) { $("msg").textContent = e.message; }
+});
+
+async function open(key) {
+  $("msg").textContent = "";
+  try { render(await api("detail", { key })); } catch (e) { $("msg").textContent = e.message; }
+}
+
+function render(d) {
+  cur = d;
+  const e = d.employee, active = d.cards.find(c => !c.revoked);
+  $("dName").textContent = e.hoTen || e.msnv;
+  const rows = [["MSNV", e.msnv], ["Khóa", e.key], ["Đơn vị", e.donVi], ["Công ty", e.congTy || e.sheet], ["Hết hạn HĐ", e.hetHan && !e.hetHan.startsWith("INVALID") ? e.hetHan.split("-").reverse().join("/") : e.hetHan],
+    ["Trạng thái", e.trangThai || "Bình thường"], ["Suất chay", e.veg ? "Có" : "Không"], ["Thẻ đang dùng", active ? active.code : "Chưa có"], ["Lần nhận gần nhất", when(d.lastMeal)]];
+  $("dInfo").innerHTML = rows.filter(r => r[1]).map(r => `<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join("");
+  $("dWarn").hidden = true;
+  $("printBtn").disabled = !active;
+  $("cards").innerHTML = d.cards.length ? d.cards.map(c => `<tr><td><code>${esc(c.code)}</code></td><td><span class="tag ${c.revoked ? "off" : ""}">${c.revoked ? "Đã thu hồi" : "Đang dùng"}</span></td><td>${esc(c.lyDo)} ${esc(when(c.at))}</td></tr>`).join("")
+    : '<tr><td colspan="3">Chưa có thẻ.</td></tr>';
+  $("meals").innerHTML = d.meals.length ? d.meals.map(m => `<tr><td>${esc(when(m.time))}</td><td>${m.loai === "chay" ? "Chay" : "Thường"}</td><td>${esc(m.scanner)}</td></tr>`).join("")
+    : '<tr><td colspan="3">Chưa có lượt nhận suất.</td></tr>';
+  ["detail", "cardsP", "mealsP"].forEach(x => $(x).hidden = false);
+  $("detail").scrollIntoView();
+}
+
+function showList(results) {
+  $("list").innerHTML = "";
+  results.forEach(r => {
+    const li = document.createElement("li");
+    li.innerHTML = `<button type="button"><b>${esc(r.hoTen)}</b><br>${esc([r.msnv, r.donVi].filter(Boolean).join(" - "))}</button>`;
+    li.firstChild.addEventListener("click", () => open(r.key));
+    $("list").appendChild(li);
+  });
+}
+
+// ---------- công ty + phòng ban ----------
+async function loadDepts() {
+  try {
+    const r = await api("departments", {});
+    $("who").textContent = "Quản trị: " + r.company;
+    depts = r.departments;
+    $("dept").innerHTML = `<option value="">Chọn phòng ban (${depts.length})</option>` +
+      depts.map((d, i) => `<option value="${i}">${esc(d.name || "(Chưa có đơn vị)")} - ${d.count} người</option>`).join("");
+  } catch (e) { $("msg").textContent = e.message; }
+}
+$("dept").addEventListener("change", async () => {
+  clearAll(); $("msg").textContent = "";
+  const d = depts[$("dept").value];
+  if (!d) return;
+  try {
+    const { results } = await api("byDept", { dept: d.name });
+    $("cnt").textContent = results.length + " nhân viên";
+    showList(results);
+  } catch (e) { $("msg").textContent = e.message; }
+});
+
+// ---------- in / cấp lại thẻ ----------
+async function printCard(e, code) {
+  const img = await QRCode.toDataURL(code, { width: 600, margin: 1, errorCorrectionLevel: "M" });
+  $("pArea").innerHTML = `<div class="pcard"><img src="${img}" alt="QR ${esc(code)}"><div><div class="co">${esc(e.congTy || e.sheet)}</div><div class="nm">${esc(e.hoTen)}</div><div class="mt">MSNV: ${esc(e.msnv)}<br>${esc(e.donVi)}</div><div class="cd">${esc(code)}</div></div></div>`;
+  const im = $("pArea").querySelector("img");
+  if (!im.complete) await new Promise(r => { im.onload = r; });
+  window.print();
+}
+
+$("printBtn").addEventListener("click", () => {
+  const a = cur && cur.cards.find(c => !c.revoked);
+  if (a) printCard(cur.employee, a.code);
+});
+
+$("reissueBtn").addEventListener("click", async () => {
+  if (!cur) return;
+  const e = cur.employee;
+  const reason = prompt("Lý do cấp lại thẻ:", "Mất thẻ");
+  if (reason === null) return;
+  if (!confirm(`Thu hồi thẻ cũ và cấp thẻ mới cho ${e.hoTen} (MSNV ${e.msnv})?`)) return;
+  $("reissueBtn").disabled = true; $("msg").textContent = "";
+  try {
+    const r = await api("reissue", { key: e.key, reason });
+    await open(e.key);
+    if (r.stillBlocked) { $("dWarn").textContent = `Chú ý: nhân viên đang ở trạng thái "${r.employee.trangThai}", thẻ mới vẫn bị từ chối cho đến khi sửa trạng thái.`; $("dWarn").hidden = false; }
+    await printCard(r.employee, r.newCode);
+  } catch (err) { $("msg").textContent = err.message; }
+  finally { $("reissueBtn").disabled = false; }
+});
+</script>
+</body>
+</html>

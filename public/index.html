@@ -128,6 +128,7 @@
   <header class="bar">
     <div class="who"><b id="whoName">-</b><span id="whoNote">Quét suất thường</span></div>
     <span id="vegBadge" class="badge" hidden>Suất chay</span>
+    <a id="adminLink" class="btn" href="/admin.html" style="display:inline-flex;align-items:center;text-decoration:none" hidden>Quản trị</a>
     <button id="logoutBtn" class="btn" type="button">Đăng xuất</button>
   </header>
 
@@ -243,6 +244,7 @@ onAuthStateChanged(auth, async user => {
   $("whoName").textContent = user.displayName || user.email.split("@")[0];
   $("whoNote").textContent = veg ? "Chỉ nhận nhân viên đã đăng ký chay" : "Quét suất thường";
   $("vegBadge").hidden = !veg;
+  $("adminLink").hidden = String(tok.claims.role || "").toUpperCase() !== "ADMIN";   // chỉ admin thấy nút Quản trị
   $("login").hidden = true; $("app").hidden = false;
   startCam();
   ping(); clearInterval(pingTimer); pingTimer = setInterval(ping, 4 * 60 * 1000);   // giữ hàm máy chủ "nóng"
