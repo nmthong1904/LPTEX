@@ -36,8 +36,9 @@
   .panel { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
   .panel h2 { margin:0 0 10px; font-size:16px; }
   .list { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
-  .list button { width:100%; text-align:left; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; background:#fff; cursor:pointer; }
-  .list button:hover { border-color:var(--blue); }
+  /* Chỉ áp dụng cho nút chọn nhân viên, KHÔNG ảnh hưởng các nút trong khung chi tiết */
+  .list .it > button { width:100%; text-align:left; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); cursor:pointer; }
+  .list .it > button:hover { border-color:var(--blue); }
   dl { display:grid; grid-template-columns:max-content 1fr; gap:6px 16px; margin:0; }
   dt { color:var(--muted); } dd { margin:0; font-weight:500; overflow-wrap:anywhere; }
   .name { font-size:22px; font-weight:800; margin:0 0 10px; }
@@ -67,6 +68,11 @@
   .radios input { width:20px; height:20px; }
   #vMsg { min-height:22px; margin:10px 0 0; }
   #vMsg.err { color:var(--bad); }
+  details.panel > summary { cursor:pointer; font-weight:700; font-size:16px; list-style:none; display:flex; align-items:center; justify-content:space-between; }
+  details.panel > summary::-webkit-details-marker { display:none; }
+  details.panel > summary::after { content:"▾"; color:var(--muted); transition:transform .15s; }
+  details.panel[open] > summary::after { transform:rotate(180deg); }
+  details.panel[open] > summary { margin-bottom:12px; }
   .it { display:flex; gap:8px; align-items:stretch; }
   .it > button { width:auto; flex:1; min-width:0; }
   .it.sel > button { border-color:var(--blue); background:#F3F6FF; }
@@ -154,8 +160,9 @@
         <button id="delBtn" class="btn danger" type="button">Xóa</button>
       </div>
     </section>
-    <section id="vegP" class="panel">
-      <h2>Đăng ký ăn chay</h2>
+    <!-- Thu gọn mặc định: chỉ mở khi cần đăng ký ăn chay riêng cho 1 người -->
+    <details id="vegP" class="panel">
+      <summary>Đăng ký ăn chay (từng người)</summary>
       <div class="row">
         <input id="vDate" type="date" aria-label="Ngày ăn chay">
       </div>
@@ -165,7 +172,7 @@
       </div>
       <p id="vMsg" role="status"></p>
       <p id="vList" class="cnt"></p>
-    </section>
+    </details>
     <section id="cardsP" class="panel">
       <h2>Thẻ</h2>
       <table><thead><tr><th>Mã thẻ</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead><tbody id="cards"></tbody></table>
@@ -198,7 +205,8 @@
 
 <div id="pArea"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<!-- qrcode@1.4.4 có sẵn build/qrcode.min.js (bản 1.5.x không còn file này nên gây lỗi "QRCode is not defined") -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
@@ -273,6 +281,7 @@ async function open(key) {
 }
 
 function render(d) {
+  const sameEmp = cur && cur.employee.key === d.employee.key;
   cur = d;
   const e = d.employee, active = d.cards.find(c => !c.revoked);
   $("dName").textContent = e.hoTen || e.msnv;
@@ -286,6 +295,7 @@ function render(d) {
   $("meals").innerHTML = d.meals.length ? d.meals.map(m => `<tr><td>${esc(when(m.time))}</td><td>${m.loai === "chay" ? "Chay" : "Thường"}</td><td>${esc(m.scanner)}</td></tr>`).join("")
     : '<tr><td colspan="3">Chưa có lượt nhận suất.</td></tr>';
   $("dwrap").hidden = false;
+  if (!sameEmp) $("vegP").open = false;   // chọn nhân viên khác -> mục ăn chay tự thu gọn
   renderVeg();
 }
 
@@ -416,7 +426,8 @@ document.querySelectorAll("input[name=veg]").forEach(r => r.addEventListener("ch
 
 // ---------- in / cấp lại thẻ ----------
 async function printCard(e, code) {
-  const img = await QRCode.toDataURL(code, { width: 600, margin: 1, errorCorrectionLevel: "M" });
+  if (typeof window.QRCode === "undefined") throw new Error("Không tải được thư viện QR. Kiểm tra kết nối mạng rồi tải lại trang.");
+  const img = await window.QRCode.toDataURL(code, { width: 600, margin: 1, errorCorrectionLevel: "M" });
   $("pArea").innerHTML = `<div class="pcard"><img src="${img}" alt="QR ${esc(code)}"><div><div class="co">${esc(e.congTy || e.sheet)}</div><div class="nm">${esc(e.hoTen)}</div><div class="mt">MSNV: ${esc(e.msnv)}<br>${esc(e.donVi)}</div><div class="cd">${esc(code)}</div></div></div>`;
   const im = $("pArea").querySelector("img");
   if (!im.complete) await new Promise(r => { im.onload = r; });
