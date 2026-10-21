@@ -117,7 +117,9 @@ const toUser = u => String(u).trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
         if (e.code === 'auth/user-not-found') rec = await auth.createUser(Object.assign({ email }, props));
         else throw e;
       }
-      await auth.setCustomUserClaims(rec.uid, { role: plain(u.loaiSuat) === 'CHAY' ? 'CHAY' : '' });
+      const old = rec.customClaims || {};
+      const keepAdmin = String(old.role || '').toUpperCase() === 'ADMIN';   // không làm mất quyền admin + công ty khi nhập lại
+      await auth.setCustomUserClaims(rec.uid, keepAdmin ? { role: 'ADMIN', company: old.company || '' } : { role: plain(u.loaiSuat) === 'CHAY' ? 'CHAY' : '' });
       console.log(`Tài khoản ${uname}: ${disabled ? 'ĐANG KHÓA, ' : ''}${plain(u.loaiSuat) === 'CHAY' ? 'quét suất chay, ' : ''}mật khẩu ${hasPw ? 'lấy từ sheet' : 'mặc định ' + DEFAULT_PW}`);
     }
   }
