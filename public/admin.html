@@ -66,19 +66,15 @@
   .radios { margin-top:12px; }
   .radios label { display:inline-flex; align-items:center; gap:8px; margin:0 20px 0 0; font-weight:500; }
   .radios input { width:20px; height:20px; }
-  #vMsg { min-height:22px; margin:10px 0 0; }
-  #vMsg.err { color:var(--bad); }
-  details.panel > summary { cursor:pointer; font-weight:700; font-size:16px; list-style:none; display:flex; align-items:center; justify-content:space-between; }
-  details.panel > summary::-webkit-details-marker { display:none; }
-  details.panel > summary::after { content:"▾"; color:var(--muted); transition:transform .15s; }
-  details.panel[open] > summary::after { transform:rotate(180deg); }
-  details.panel[open] > summary { margin-bottom:12px; }
+  #ddlg { width:min(600px, calc(100% - 24px)); max-height:90vh; background:var(--paper); }
+  #ddlg::backdrop { background:rgba(15,27,45,.5); }
+  #dwrap { display:grid; gap:12px; padding:14px; }
+  #dClose { width:100%; background:#fff; }
   .it { display:flex; gap:8px; align-items:stretch; }
   .it > button { width:auto; flex:1; min-width:0; }
   .it.sel > button { border-color:var(--blue); background:#F3F6FF; }
   .ck { display:flex; align-items:center; margin:0; padding:0 4px; cursor:pointer; }
   .ck input { width:22px; height:22px; }
-  #dwrap { display:grid; gap:16px; margin:2px 0 8px; }
   #bulk input[type=date] { margin-bottom:4px; }
   #bMsg { min-height:22px; margin:10px 0 0; }
   #bMsg.err { color:var(--bad); }
@@ -92,6 +88,7 @@
   @media print {
     @page { size:85.6mm 54mm; margin:0; }
     body > *:not(#pArea) { display:none !important; }
+    dialog { display:none !important; }
     #pArea { display:block; }
   }
 </style>
@@ -146,9 +143,12 @@
       <p id="bMsg" role="status"></p>
     </section>
     <div id="list" class="list"></div>
-    <div id="dhome">
-    <div id="dwrap" hidden>
+  </main>
+</div>
 
+<!-- Chi tiết nhân viên hiển thị dạng hộp thoại -->
+<dialog id="ddlg">
+  <div id="dwrap">
     <section id="detail" class="panel">
       <p id="dName" class="name"></p>
       <dl id="dInfo"></dl>
@@ -160,19 +160,6 @@
         <button id="delBtn" class="btn danger" type="button">Xóa</button>
       </div>
     </section>
-    <!-- Thu gọn mặc định: chỉ mở khi cần đăng ký ăn chay riêng cho 1 người -->
-    <details id="vegP" class="panel">
-      <summary>Đăng ký ăn chay (từng người)</summary>
-      <div class="row">
-        <input id="vDate" type="date" aria-label="Ngày ăn chay">
-      </div>
-      <div class="radios">
-        <label><input type="radio" name="veg" value="0" checked> Ăn thường</label>
-        <label><input type="radio" name="veg" value="1"> Ăn chay</label>
-      </div>
-      <p id="vMsg" role="status"></p>
-      <p id="vList" class="cnt"></p>
-    </details>
     <section id="cardsP" class="panel">
       <h2>Thẻ</h2>
       <table><thead><tr><th>Mã thẻ</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead><tbody id="cards"></tbody></table>
@@ -181,10 +168,9 @@
       <h2>Lần nhận suất gần nhất</h2>
       <table><thead><tr><th>Thời gian</th><th>Loại</th><th>Máy quét</th></tr></thead><tbody id="meals"></tbody></table>
     </section>
-    </div>
-    </div>
-  </main>
-</div>
+    <button id="dClose" class="btn ghost" type="button">Đóng</button>
+  </div>
+</dialog>
 
 <dialog id="dlg">
   <form id="ef">
@@ -261,7 +247,8 @@ const picked = new Set();               // nhân viên đang được tick để
 let lastResults = [], lastChecks = false;
 const clearAll = () => {
   curDept = null; picked.clear(); lastResults = [];
-  $("dhome").appendChild($("dwrap")); $("dwrap").hidden = true; $("bulk").hidden = true;
+  if ($("ddlg").open) $("ddlg").close();
+  $("bulk").hidden = true;
   $("list").innerHTML = ""; $("cnt").textContent = ""; cur = null;
 };
 
@@ -281,7 +268,6 @@ async function open(key) {
 }
 
 function render(d) {
-  const sameEmp = cur && cur.employee.key === d.employee.key;
   cur = d;
   const e = d.employee, active = d.cards.find(c => !c.revoked);
   $("dName").textContent = e.hoTen || e.msnv;
@@ -294,26 +280,23 @@ function render(d) {
     : '<tr><td colspan="3">Chưa có thẻ.</td></tr>';
   $("meals").innerHTML = d.meals.length ? d.meals.map(m => `<tr><td>${esc(when(m.time))}</td><td>${m.loai === "chay" ? "Chay" : "Thường"}</td><td>${esc(m.scanner)}</td></tr>`).join("")
     : '<tr><td colspan="3">Chưa có lượt nhận suất.</td></tr>';
-  $("dwrap").hidden = false;
-  if (!sameEmp) $("vegP").open = false;   // chọn nhân viên khác -> mục ăn chay tự thu gọn
-  renderVeg();
+  if (!$("ddlg").open) $("ddlg").showModal();
 }
+$("dClose").addEventListener("click", () => $("ddlg").close());
 
-// Danh sách nhân viên. Chi tiết (#dwrap) được chèn NGAY DƯỚI người vừa chọn, không cuộn trang.
+// Danh sách nhân viên. Bấm vào một người sẽ mở hộp thoại chi tiết.
 function showList(results, checks) { lastResults = results; lastChecks = !!checks; renderList(); }
 function renderList() {
-  $("dhome").appendChild($("dwrap"));          // đưa khung chi tiết ra ngoài để không bị xóa khi dựng lại danh sách
   $("list").innerHTML = "";
   const date = $("bDate").value;
   lastResults.forEach(r => {
     const it = document.createElement("div");
-    it.className = "it" + (cur && cur.employee.key === r.key && !$("dwrap").hidden ? " sel" : "");
+    it.className = "it";
     it.innerHTML = (lastChecks ? `<label class="ck"><input type="checkbox" aria-label="Chọn ${esc(r.hoTen)}"${picked.has(r.key) ? " checked" : ""}></label>` : "") +
       `<button type="button"><b>${esc(r.hoTen)}</b>${lastChecks && r.vegDates.includes(date) ? ' <span class="tag">Chay</span>' : ""}<br>${esc([r.msnv, r.donVi].filter(Boolean).join(" - "))}</button>`;
     if (lastChecks) it.querySelector("input").addEventListener("change", ev => { ev.target.checked ? picked.add(r.key) : picked.delete(r.key); updPick(); });
     it.querySelector("button").addEventListener("click", () => pick(it, r.key));
     $("list").appendChild(it);
-    if (it.classList.contains("sel")) it.after($("dwrap"));
   });
   updPick();
 }
@@ -321,14 +304,7 @@ function updPick() {
   $("bCnt").textContent = picked.size;
   $("bAll").checked = lastResults.length > 0 && picked.size === lastResults.length;
 }
-async function pick(it, key) {
-  const wrap = $("dwrap");
-  if (!wrap.hidden && cur && cur.employee.key === key && it.nextSibling === wrap) { wrap.hidden = true; it.classList.remove("sel"); return; }   // bấm lần nữa để thu gọn
-  document.querySelectorAll(".it.sel").forEach(x => x.classList.remove("sel"));
-  it.classList.add("sel");
-  wrap.hidden = true; it.after(wrap);
-  await open(key);
-}
+async function pick(it, key) { await open(key); }
 
 // ---------- đăng ký ăn chay hàng loạt theo phòng ban ----------
 $("bAll").addEventListener("change", () => {
@@ -349,7 +325,6 @@ async function bulk(on) {
     await api("setVegBulk", { keys, date, veg: on });
     picked.clear();
     await showDept(curDept);
-    if (!$("dwrap").hidden && cur) await open(cur.employee.key);
     $("bMsg").className = "ok";
     $("bMsg").textContent = `${on ? "Đã đăng ký ăn chay" : "Đã hủy ăn chay"} ngày ${vn(date)} cho ${keys.length} nhân viên.`;
   } catch (err) { $("bMsg").textContent = err.message; }
@@ -397,32 +372,6 @@ async function afterChange() {
 
 // ---------- đăng ký ăn chay theo ngày (qua ngày tự về ăn thường) ----------
 const vn = d => d.split("-").reverse().join("/");
-function syncVeg() {
-  const on = cur.employee.vegDates.includes($("vDate").value);
-  document.querySelector('input[name=veg][value="' + (on ? 1 : 0) + '"]').checked = true;
-}
-function renderVeg() {
-  const e = cur.employee, t = cur.today;
-  $("vDate").min = t;
-  $("vDate").max = new Date(Date.parse(t) + 60 * 86400000).toISOString().slice(0, 10);
-  if (!$("vDate").value || $("vDate").value < t) $("vDate").value = t;
-  $("vMsg").textContent = "";
-  $("vList").textContent = e.vegDates.length ? "Đã đăng ký ăn chay: " + e.vegDates.map(vn).join(", ") : "Chưa đăng ký ngày nào.";
-  syncVeg();
-}
-$("vDate").addEventListener("change", () => cur && syncVeg());
-document.querySelectorAll("input[name=veg]").forEach(r => r.addEventListener("change", async () => {
-  if (!cur) return;
-  const on = r.value === "1", date = $("vDate").value;
-  if (!date) return syncVeg();
-  try {
-    const res = await api("setVeg", { key: cur.employee.key, date, veg: on });
-    cur.employee.vegDates = res.employee.vegDates;
-    render(cur);
-    $("vMsg").className = "ok";
-    $("vMsg").textContent = (on ? "Đã đăng ký ăn chay ngày " : "Đã hủy ăn chay ngày ") + vn(date) + ".";
-  } catch (err) { $("vMsg").className = "err"; $("vMsg").textContent = err.message; syncVeg(); }
-}));
 
 // ---------- in / cấp lại thẻ ----------
 async function printCard(e, code) {
@@ -482,7 +431,7 @@ $("delBtn").addEventListener("click", async () => {
   if (!confirm(`Xóa nhân viên ${e.hoTen} (MSNV ${e.msnv})?\nThẻ của nhân viên sẽ bị thu hồi. Lịch sử nhận suất vẫn được giữ.`)) return;
   try {
     await api("delete", { key: e.key });
-    $("dwrap").hidden = true; cur = null;
+    $("ddlg").close(); cur = null;
     await afterChange();
     $("cnt").textContent = `Đã xóa ${e.hoTen}.`;
   } catch (err) { $("msg").textContent = err.message; }
