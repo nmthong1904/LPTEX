@@ -122,6 +122,50 @@
     .it { gap: 4px; }
     .box { padding: 22px 18px; }
   }
+
+  /* ---------- sửa lỗi giao diện ---------- */
+  html { -webkit-tap-highlight-color: transparent; }
+  button, .btn, .tab { touch-action: manipulation; }
+  .bar { position: sticky; top: 0; z-index: 20; padding-top: max(10px, env(safe-area-inset-top)); }
+  /* ô chọn ngày trên iPhone/Safari: bỏ kiểu mặc định làm tràn khung và đè lên ô khác */
+  input[type=date] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; background: #fff; color: var(--ink); text-align: left; line-height: 1.2; }
+  input[type=date]::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
+  input[type=date]::-webkit-datetime-edit { padding: 0; }
+  select { -webkit-appearance: none; appearance: none; min-width: 0; padding-right: 36px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%235B6676' stroke-width='2'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 14px center; }
+  .btn:not(:disabled):hover { filter: brightness(.94); }
+  .btn.ghost:not(:disabled):hover { background: rgba(15,27,45,.06); filter: none; }
+  .bar .btn.ghost:not(:disabled):hover { background: rgba(255,255,255,.12); }
+
+  .row.top .btn { flex: none; }
+  .bar b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #msg:empty, .cnt:empty, #bMsg:empty { display: none; }
+  #msg { min-height: 0; margin: 0; }
+  .cnt { margin: -6px 0 0; }
+  #bMsg { min-height: 0; margin: 12px 0 0; }
+  #bulk h2 { margin-bottom: 12px; }
+  #bulk .actions { margin-top: 14px; }
+  .radios { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+  .radios label { margin: 0; min-height: 44px; cursor: pointer; }
+  .radios input, .ck input { flex: none; accent-color: var(--blue); }
+  .radios > span { white-space: nowrap; }
+  .ck { min-width: 44px; justify-content: center; }
+  .list .it > button { min-height: 60px; padding: 10px 14px; line-height: 1.4; }
+  .list .it > button b { overflow-wrap: anywhere; }
+  .search .btn { flex: none; }
+  .search input { min-width: 0; flex: 1; }
+  #detail .actions .btn { min-width: 0; }
+  #dClose { position: sticky; bottom: 0; }
+  /* thanh thao tác cố định khi đã chọn nhân viên */
+  .bbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(15,27,45,.12); }
+  .bbar > span { flex: 1; white-space: nowrap; }
+  .bbar .btn { height: 44px; padding: 0 14px; font-size: 14px; white-space: nowrap; }
+  body.hasbar .wrap { padding-bottom: 96px; }
+  @media (min-width: 900px) { .bbar { justify-content: center; } .bbar > span { flex: none; margin-right: 12px; } }
+  @media (max-width: 600px) {
+    .row.top .btn { height: 46px; }
+    .actions .btn { min-height: 46px; }
+  }
+  @media print { .bbar { display: none !important; } }
 </style>
 </head>
 <body>
@@ -175,6 +219,11 @@
     </section>
     <div id="list" class="list"></div>
   </main>
+  <div id="bBar" class="bbar" hidden>
+    <span><b id="bCnt2">0</b> đã chọn</span>
+    <button id="bOn2" class="btn" type="button">Đăng ký ăn chay</button>
+    <button id="bOff2" class="btn ghost" type="button">Hủy ăn chay</button>
+  </div>
 </div>
 
 <!-- Chi tiết nhân viên hiển thị dạng hộp thoại -->
@@ -334,6 +383,9 @@ function renderList() {
 function updPick() {
   $("bCnt").textContent = picked.size;
   $("bAll").checked = lastResults.length > 0 && picked.size === lastResults.length;
+  $("bCnt2").textContent = picked.size;
+  $("bBar").hidden = picked.size === 0;
+  document.body.classList.toggle("hasbar", picked.size > 0);
 }
 async function pick(it, key) { await open(key); }
 
@@ -349,9 +401,9 @@ async function bulk(on) {
   const keys = [...picked], date = $("bDate").value;
   $("bMsg").className = "err";
   if (!keys.length) { $("bMsg").textContent = "Chưa chọn nhân viên nào."; return; }
-  if (!date) { $("bMsg").textContent = "Chưa chọn ngày."; return; }
+  if (!date) { $("bMsg").textContent = "Chưa chọn ngày."; $("bDate").scrollIntoView({ block: "center" }); return; }
   if (!confirm(`${on ? "Đăng ký ăn chay" : "Hủy ăn chay"} ngày ${vn(date)} cho ${keys.length} nhân viên?`)) return;
-  $("bOn").disabled = $("bOff").disabled = true; $("bMsg").textContent = "";
+  setBusy(true); $("bMsg").textContent = "";
   try {
     await api("setVegBulk", { keys, date, veg: on });
     picked.clear();
@@ -359,10 +411,13 @@ async function bulk(on) {
     $("bMsg").className = "ok";
     $("bMsg").textContent = `${on ? "Đã đăng ký ăn chay" : "Đã hủy ăn chay"} ngày ${vn(date)} cho ${keys.length} nhân viên.`;
   } catch (err) { $("bMsg").textContent = err.message; }
-  finally { $("bOn").disabled = $("bOff").disabled = false; }
+  finally { setBusy(false); $("bMsg").scrollIntoView({ block: "nearest", behavior: "smooth" }); }
 }
+function setBusy(b) { ["bOn", "bOff", "bOn2", "bOff2"].forEach(i => $(i).disabled = b); }
 $("bOn").addEventListener("click", () => bulk(true));
 $("bOff").addEventListener("click", () => bulk(false));
+$("bOn2").addEventListener("click", () => bulk(true));
+$("bOff2").addEventListener("click", () => bulk(false));
 
 // ---------- công ty + phòng ban ----------
 async function loadDepts() {
