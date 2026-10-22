@@ -6,13 +6,14 @@
  *   employees/{key}   cards/{maThe}   lastMeal/{key}   meals/{id}   refused/{id}
  *******************************************************/
 // Nạp thư viện lười (lazy) để nếu thiếu thư viện / sai cấu hình thì hàm trả lỗi đọc được, không bị sập
-let db, Timestamp, getAuth;
+let db, Timestamp, FieldValue, getAuth;
 let warmed = false;   // false = lần gọi đầu tiên của máy chủ này (khởi động nguội)
 function init() {
   const app = require('firebase-admin/app');
   const fsx = require('firebase-admin/firestore');
   getAuth = require('firebase-admin/auth').getAuth;
   Timestamp = fsx.Timestamp;
+  FieldValue = fsx.FieldValue;
   if (!app.getApps().length) {
     app.initializeApp({ credential: app.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
   }
@@ -27,6 +28,7 @@ const TZ = 'Asia/Ho_Chi_Minh';
 // ---------- tiện ích ----------
 const plain = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .replace(/đ/g, 'd').replace(/Đ/g, 'D').toUpperCase().trim();
+const hid = s => require('crypto').createHash('sha1').update(String(s)).digest('hex').slice(0, 12);   // ID ngắn, an toàn cho khóa/ID tài liệu
 const safe = s => String(s).trim().replace(/\//g, '_');   // ID tài liệu không được chứa "/"
 
 const fmt = new Intl.DateTimeFormat('en-GB', {
@@ -176,6 +178,14 @@ async function recordMeal(token, data) {
       hoTen: emp.hoTen, donVi: emp.donVi, trangThai: 'ĐÃ NHẬN', scanner,
       loai: vegMode ? 'chay' : 'thuong', x: emp.x || {}
     });
+    // Cộng dồn số liệu báo cáo: mỗi (ngày, máy quét) một tài liệu stats nên không bị nghẽn ghi cùng lúc.
+    // Báo cáo chỉ đọc các tài liệu này (vài chục) thay vì đọc hàng chục nghìn tài liệu meals.
+    const company = String((emp.x || {}).CONG_TY || ''), dept = emp.donVi || '';
+    tx.set(db.doc(`stats/${ymd(now)}_${hid(scanner)}`), {
+      date: ymd(now), scanner,
+      cp: { [hid(company)]: { n: company, p: FieldValue.arrayUnion(key) } },
+      dp: { [hid(company + '||' + dept)]: { c: company, n: dept, [vegMode ? 'chay' : 'thuong']: FieldValue.increment(1) } }
+    }, { merge: true });
     return { dup: false, now };
   });
 

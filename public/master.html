@@ -217,6 +217,7 @@
         </div>
         <button id="rGo" class="btn" type="button">Xem báo cáo</button>
         <button id="rCsv" class="btn ghost" type="button" disabled>Tải CSV</button>
+        <button id="rRebuild" class="btn ghost" type="button">Tính lại số liệu</button>
       </div>
       <div id="rmsg" class="err" role="status"></div>
     </section>
@@ -451,6 +452,7 @@ $("rGo").addEventListener("click", async () => {
   try {
     rep = await api("report", { from: $("rFrom").value, to: $("rTo").value, company: $("rCo").value });
     renderReport(rep);
+    if (rep.statDocs === 0) $("rmsg").textContent = "Chưa có số liệu tổng hợp cho khoảng ngày này. Bấm \"Tính lại số liệu\" để tạo từ dữ liệu cũ.";
   } catch (e) { $("rmsg").textContent = e.message; }
   finally { $("rGo").disabled = false; $("rGo").textContent = "Xem báo cáo"; }
 });
@@ -468,6 +470,19 @@ function renderReport(r) {
   $("tDept").innerHTML = rows(r.byDept, ["company", "name", "thuong", "chay", "total"]);
   $("rOut").hidden = false; $("rCsv").disabled = false;
 }
+
+// tính lại số liệu tổng hợp cho các ngày đã qua (chỉ cần làm một lần cho dữ liệu cũ)
+$("rRebuild").addEventListener("click", async () => {
+  $("rmsg").className = "err"; $("rmsg").textContent = "";
+  if (!$("rFrom").value || !$("rTo").value) { $("rmsg").textContent = "Chọn đủ khoảng ngày."; return; }
+  if (!confirm(`Tính lại số liệu từ ${vnDate($("rFrom").value)} đến ${vnDate($("rTo").value)}?\nBước này đọc lại từng suất ăn nên tốn nhiều lượt đọc Firestore. Chỉ làm một lần cho dữ liệu cũ, không tính ngày hôm nay.`)) return;
+  $("rRebuild").disabled = true; $("rRebuild").textContent = "Đang tính...";
+  try {
+    const r = await api("rebuildStats", { from: $("rFrom").value, to: $("rTo").value });
+    $("rmsg").className = "ok"; $("rmsg").textContent = `Đã tính lại ${nf(r.meals)} suất ăn (${vnDate(r.from)} - ${vnDate(r.to)}).`;
+  } catch (e) { $("rmsg").textContent = e.message; }
+  finally { $("rRebuild").disabled = false; $("rRebuild").textContent = "Tính lại số liệu"; }
+});
 
 // xuất CSV (mở được bằng Excel, có BOM để giữ tiếng Việt)
 $("rCsv").addEventListener("click", () => {

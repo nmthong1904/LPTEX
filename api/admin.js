@@ -6,18 +6,20 @@
  * Dùng chung biến môi trường FIREBASE_SERVICE_ACCOUNT với recordMeal.js
  *******************************************************/
 const crypto = require('crypto');
-let db, Timestamp, getAuth;
+let db, Timestamp, FieldValue, getAuth;
 function init() {
   const app = require('firebase-admin/app');
   const fsx = require('firebase-admin/firestore');
   getAuth = require('firebase-admin/auth').getAuth;
   Timestamp = fsx.Timestamp;
+  FieldValue = fsx.FieldValue;
   if (!app.getApps().length) app.initializeApp({ credential: app.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
   db = db || fsx.getFirestore();
 }
 
 const plain = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .replace(/đ/g, 'd').replace(/Đ/g, 'D').toUpperCase().trim();
+const hid = s => crypto.createHash('sha1').update(String(s)).digest('hex').slice(0, 12);   // ID ngắn cho tên phòng ban
 const safe = s => String(s).trim().replace(/\//g, '_');
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const newCode = () => Array.from({ length: 10 }, () => ALPHABET[crypto.randomInt(ALPHABET.length)]).join('');
@@ -63,13 +65,44 @@ async function search(q, scope) {
   return [...found].filter(([, e]) => inScope(scope, e)).slice(0, 20).map(([key, e]) => empOut(key, e));
 }
 
-async function departments(scope) {
-  const c = deptCache[scope];
-  if (c && Date.now() - c.at < 300000) return c.list;
+// Danh sách phòng ban lưu sẵn ở meta/depts_{công ty}: { ready, d: { [hash]: { n: tên, c: số người } } }
+// Mở trang chỉ tốn 1 lượt đọc. Tài liệu được cộng/trừ khi thêm, sửa, xóa nhân viên (cùng batch với thay đổi đó).
+const deptRef = scope => db.doc(`meta/depts_${scope}`);
+const deptList = d => Object.values(d || {}).filter(o => (o.c || 0) > 0)
+  .map(o => ({ name: o.n || '', count: o.c })).sort((x, y) => x.name.localeCompare(y.name, 'vi'));
+
+function deptDelta(batch, scope, changes) {          // changes: [[tên phòng ban, +1 | -1], ...]
+  const d = {};
+  changes.forEach(([name, n]) => {
+    name = String(name || '');
+    const k = hid(name);
+    d[k] = { n: name, c: FieldValue.increment(n) };   // cùng phòng ban nhiều lần thì lần sau ghi đè, nên gộp trước khi gọi
+  });
+  batch.set(deptRef(scope), { d }, { merge: true });
+}
+
+// Tính lại từ employees (tốn 1 lượt đọc cho mỗi nhân viên của công ty). Chỉ chạy lần đầu hoặc khi bấm "Làm mới".
+async function rebuildDepts(scope) {
   const snap = await db.collection('employees').where('sheet', '==', scope).select('donVi').get();
-  const m = new Map();
-  snap.docs.forEach(d => { const n = d.get('donVi') || ''; m.set(n, (m.get(n) || 0) + 1); });
-  const list = [...m].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  const d = {};
+  snap.docs.forEach(x => {
+    const n = x.get('donVi') || '', k = hid(n);
+    (d[k] = d[k] || { n, c: 0 }).c++;
+  });
+  await deptRef(scope).set({ ready: true, d, rebuiltAt: Timestamp.now() });   // ghi đè hoàn toàn
+  return d;
+}
+
+async function departments(scope, refresh) {
+  const c = deptCache[scope];
+  if (!refresh && c && Date.now() - c.at < 300000) return c.list;
+  let d;
+  if (refresh) d = await rebuildDepts(scope);
+  else {
+    const s = await deptRef(scope).get();
+    d = s.exists && s.get('ready') ? s.get('d') : await rebuildDepts(scope);   // chưa có / chưa hoàn chỉnh thì tính một lần
+  }
+  const list = deptList(d);
   deptCache[scope] = { at: Date.now(), list };
   return list;
 }
@@ -195,6 +228,7 @@ async function createEmp(d, scope, adminName) {
   const emp = { msnv, sheet: scope, ...f, x: { CONG_TY: COMPANIES[scope] }, legacyRevoked: false };
   const batch = db.batch();
   batch.create(db.doc(`employees/${key}`), emp);
+  deptDelta(batch, scope, [[emp.donVi, 1]]);
   batch.set(db.doc(`cards/${code}`), { key, issuedAt: now });
   batch.create(db.collection('empLogs').doc(), { time: now, action: 'create', empKey: key, after: snapshot(emp), newCode: code, admin: adminName, company: scope });
   await batch.commit();
@@ -208,6 +242,7 @@ async function updateEmp(d, scope, adminName) {
   const f = cleanEmp(d, e);                     // MSNV và công ty không đổi được
   const batch = db.batch();
   batch.update(es.ref, f);
+  if ((e.donVi || '') !== f.donVi) deptDelta(batch, scope, [[e.donVi || '', -1], [f.donVi, 1]]);
   batch.create(db.collection('empLogs').doc(), { time: Timestamp.now(), action: 'update', empKey: es.id, before: snapshot(e), after: snapshot({ ...e, ...f }), admin: adminName, company: scope });
   await batch.commit();
   delete deptCache[scope];
@@ -221,6 +256,7 @@ async function removeEmp(key, scope, adminName) {
   const cards = (await db.collection('cards').where('key', '==', es.id).get()).docs.filter(d => !d.data().revoked);
   const batch = db.batch();
   cards.forEach(c => batch.set(c.ref, { revoked: true, key: es.id, msnv: e.msnv || '', hoTen: e.hoTen || '', lyDo: 'Đã xóa nhân viên', revokedAt: now }));
+  deptDelta(batch, scope, [[e.donVi || '', -1]]);
   batch.delete(es.ref);                         // lịch sử nhận suất (meals) được giữ nguyên
   batch.create(db.collection('empLogs').doc(), { time: now, action: 'delete', empKey: es.id, before: snapshot(e), revokedCodes: cards.map(c => c.id), admin: adminName, company: scope });
   await batch.commit();
@@ -291,7 +327,7 @@ module.exports = async (req, res) => {
     d = d || {};
     const adminName = String(token.email || '').split('@')[0];
 
-    if (d.action === 'departments') return res.status(200).json({ company: COMPANIES[scope], today: todayVN(), departments: await departments(scope) });
+    if (d.action === 'departments') return res.status(200).json({ company: COMPANIES[scope], today: todayVN(), departments: await departments(scope, !!d.refresh) });
     if (d.action === 'byDept') return res.status(200).json({ results: await byDept(scope, d.dept) });
     if (d.action === 'search') return res.status(200).json({ results: await search(d.q, scope) });
     if (d.action === 'detail') return res.status(200).json(await detail(d.key, scope));

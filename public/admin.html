@@ -200,6 +200,7 @@
     <div class="row top">
       <select id="dept" aria-label="Phòng ban"><option value="">Chọn phòng ban</option></select>
       <button id="addBtn" class="btn" type="button">Thêm nhân viên</button>
+      <button id="deptRefresh" class="btn ghost" type="button" title="Tính lại danh sách phòng ban từ dữ liệu nhân viên (tốn khoảng 1 lượt đọc cho mỗi nhân viên)">Làm mới</button>
     </div>
     <form id="sf" class="search">
       <input id="q" type="text" placeholder="MSNV, mã thẻ hoặc họ tên" autocomplete="off" required>
@@ -420,9 +421,9 @@ $("bOn2").addEventListener("click", () => bulk(true));
 $("bOff2").addEventListener("click", () => bulk(false));
 
 // ---------- công ty + phòng ban ----------
-async function loadDepts() {
+async function loadDepts(refresh) {
   try {
-    const r = await api("departments", {});
+    const r = await api("departments", refresh ? { refresh: true } : {});
     $("who").textContent = "Quản trị: " + r.company;
     depts = r.departments;
     if (r.today) {
@@ -435,6 +436,12 @@ async function loadDepts() {
     $("deptList").innerHTML = depts.filter(d => d.name).map(d => `<option value="${esc(d.name)}">`).join("");
   } catch (e) { $("msg").textContent = e.message; }
 }
+$("deptRefresh").addEventListener("click", async () => {
+  if (!confirm("Tính lại danh sách phòng ban từ dữ liệu nhân viên?\nChỉ cần làm khi vừa nhập nhân viên bằng công cụ bên ngoài. Bước này đọc toàn bộ nhân viên của công ty.")) return;
+  $("deptRefresh").disabled = true;
+  await loadDepts(true);
+  $("deptRefresh").disabled = false;
+});
 $("dept").addEventListener("change", async () => {
   clearAll(); $("msg").textContent = "";
   const d = depts[$("dept").value];

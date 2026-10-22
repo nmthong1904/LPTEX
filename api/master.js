@@ -6,18 +6,20 @@
  * Master KHÔNG đọc/sửa dữ liệu nhân viên. Tài khoản master tạo bằng tools/set-role.js (không tạo được qua API).
  * Dùng chung biến môi trường FIREBASE_SERVICE_ACCOUNT với admin.js / recordMeal.js
  *******************************************************/
-let db, Timestamp, getAuth;
+let db, Timestamp, FieldValue, getAuth;
 function init() {
   const app = require('firebase-admin/app');
   const fsx = require('firebase-admin/firestore');
   getAuth = require('firebase-admin/auth').getAuth;
   Timestamp = fsx.Timestamp;
+  FieldValue = fsx.FieldValue;
   if (!app.getApps().length) app.initializeApp({ credential: app.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
   db = db || fsx.getFirestore();
 }
 
 const plain = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/đ/g, 'd').replace(/Đ/g, 'D').toUpperCase().trim();
+const hid = s => require('crypto').createHash('sha1').update(String(s)).digest('hex').slice(0, 12);
 const fail = (http, message) => Object.assign(new Error(message), { http });
 
 const DOMAIN = '@nhaan.local';
@@ -125,25 +127,31 @@ async function report(d) {
   if (span > 92) throw fail(400, 'Chỉ xem tối đa 92 ngày mỗi lần.');
   if (co && !COMPANIES.includes(co)) throw fail(400, 'Công ty không hợp lệ.');
 
-  const snap = await db.collection('meals').where('date', '>=', from).where('date', '<=', to)
-    .select('date', 'donVi', 'scanner', 'loai', 'empKey', 'x.CONG_TY').get();
+  // Đọc số liệu đã cộng dồn (stats), không đọc từng suất ăn: mỗi lần xem chỉ tốn vài chục lượt đọc
+  const snap = await db.collection('stats').where('date', '>=', from).where('date', '<=', to).get();
 
   const days = new Map();
   for (let i = 0; i < span; i++) days.set(new Date(Date.parse(from) + i * 86400000).toISOString().slice(0, 10), { thuong: 0, chay: 0 });
   const depts = new Map(), scanners = new Map(), companies = new Map(), people = new Set();
   let thuong = 0, chay = 0;
-  const bump = (m, key, veg) => { const o = m.get(key) || { thuong: 0, chay: 0 }; o[veg ? 'chay' : 'thuong']++; m.set(key, o); };
+  const add = (map, key, t, c) => { const o = map.get(key) || { thuong: 0, chay: 0 }; o.thuong += t; o.chay += c; map.set(key, o); };
 
   snap.docs.forEach(doc => {
-    const company = String(doc.get('x.CONG_TY') || '');
-    if (co && !plain(company).startsWith(co)) return;
-    const veg = doc.get('loai') === 'chay';
-    veg ? chay++ : thuong++;
-    people.add(doc.get('empKey'));
-    bump(days, doc.get('date'), veg);
-    bump(depts, (company || '(Không rõ)') + '||' + (doc.get('donVi') || '(Chưa có đơn vị)'), veg);
-    bump(scanners, doc.get('scanner') || '(Không rõ)', veg);
-    bump(companies, company || '(Không rõ)', veg);
+    const s = doc.data();
+    Object.values(s.dp || {}).forEach(o => {
+      const company = String(o.c || '');
+      if (co && !plain(company).startsWith(co)) return;
+      const t = o.thuong || 0, c = o.chay || 0;
+      thuong += t; chay += c;
+      add(days, s.date, t, c);
+      add(depts, (company || '(Không rõ)') + '||' + (o.n || '(Chưa có đơn vị)'), t, c);
+      add(scanners, s.scanner || '(Không rõ)', t, c);
+      add(companies, company || '(Không rõ)', t, c);
+    });
+    Object.values(s.cp || {}).forEach(o => {
+      if (co && !plain(o.n).startsWith(co)) return;
+      (o.p || []).forEach(k => people.add(k));
+    });
   });
 
   let refused = null;                                           // lượt bị từ chối chưa phân theo công ty nên chỉ tính khi xem toàn hệ thống
@@ -155,12 +163,47 @@ async function report(d) {
 
   const arr = (m, f) => [...m].map(([k, v]) => ({ ...f(k), ...v, total: v.thuong + v.chay }));
   return {
-    from, to, company: co, total: thuong + chay, thuong, chay, people: people.size, refused,
+    from, to, company: co, statDocs: snap.size, total: thuong + chay, thuong, chay, people: people.size, refused,
     byDay: arr(days, k => ({ date: k })),
     byCompany: arr(companies, k => ({ name: k })).sort((a, b) => b.total - a.total),
     byDept: arr(depts, k => { const [company, name] = k.split('||'); return { company, name }; }).sort((a, b) => b.total - a.total),
     byScanner: arr(scanners, k => ({ name: k })).sort((a, b) => b.total - a.total)
   };
+}
+
+// Tính lại stats từ meals cho các ngày ĐÃ QUA (dùng 1 lần cho dữ liệu cũ; tốn 1 lượt đọc cho mỗi suất ăn trong khoảng ngày)
+async function rebuildStats(d, me) {
+  const from = String(d.from || ''); let to = String(d.to || '');
+  if (!validDate(from) || !validDate(to)) throw fail(400, 'Ngày không hợp lệ.');
+  const yesterday = new Date(Date.parse(todayVN()) - 86400000).toISOString().slice(0, 10);
+  if (to > yesterday) to = yesterday;                           // không tính lại hôm nay vì máy quét đang cộng dồn
+  if (from > to) throw fail(400, 'Chỉ tính lại được các ngày đã qua (trước hôm nay).');
+  if ((Date.parse(to) - Date.parse(from)) / 86400000 + 1 > 92) throw fail(400, 'Chỉ tính lại tối đa 92 ngày mỗi lần.');
+
+  const snap = await db.collection('meals').where('date', '>=', from).where('date', '<=', to)
+    .select('date', 'donVi', 'scanner', 'loai', 'empKey', 'x.CONG_TY').get();
+  const shards = new Map();
+  snap.docs.forEach(doc => {
+    const date = doc.get('date'), scanner = doc.get('scanner') || '', company = String(doc.get('x.CONG_TY') || ''), dept = doc.get('donVi') || '';
+    const id = date + '_' + hid(scanner);
+    const s = shards.get(id) || { date, scanner, cp: {}, dp: {} };
+    shards.set(id, s);
+    const ch = hid(company), dh = hid(company + '||' + dept);
+    const c = s.cp[ch] || (s.cp[ch] = { n: company, set: new Set() }); c.set.add(doc.get('empKey'));
+    const p = s.dp[dh] || (s.dp[dh] = { c: company, n: dept, thuong: 0, chay: 0 });
+    p[doc.get('loai') === 'chay' ? 'chay' : 'thuong']++;
+  });
+  const entries = [...shards];
+  for (let i = 0; i < entries.length; i += 400) {
+    const batch = db.batch();
+    entries.slice(i, i + 400).forEach(([id, s]) => {
+      const cp = {}; Object.entries(s.cp).forEach(([k, v]) => { cp[k] = { n: v.n, p: [...v.set] }; });
+      batch.set(db.doc('stats/' + id), { date: s.date, scanner: s.scanner, cp, dp: s.dp });   // ghi đè, chạy lại nhiều lần không bị cộng trùng
+    });
+    await batch.commit();
+  }
+  await log(me, 'rebuildStats', from + ' - ' + to, snap.size + ' suất');
+  return { ok: true, from, to, meals: snap.size, docs: shards.size };
 }
 
 module.exports = async (req, res) => {
@@ -185,6 +228,7 @@ module.exports = async (req, res) => {
     if (d.action === 'updateUser') return res.status(200).json(await updateUser(d, me));
     if (d.action === 'setPassword') return res.status(200).json(await setPassword(d, me));
     if (d.action === 'deleteUser') return res.status(200).json(await deleteUser(d, me));
+    if (d.action === 'rebuildStats') return res.status(200).json(await rebuildStats(d, me));
     if (d.action === 'report') return res.status(200).json({ today: todayVN(), ...(await report(d)) });
     return res.status(400).json({ message: 'Hành động không hợp lệ.' });
   } catch (e) {
